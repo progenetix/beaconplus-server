@@ -26,16 +26,12 @@ my $args        =   {};
 $args->{datasetPar}     =   _getDatasetParams();
 
 # GA4GH variant attributes
-
 $args->{procPar}        =   _getProcessingParams();
-
 $args->{varQpar}        =   _getVariantParams();
 $args->{varQpar}        =   _normVariantParams($args->{varQpar});
 $args->{varQ}           =   _createVariantQuery($args->{varQpar});
-
 $args->{biosQpar}       =   _getBiosampleParams();
 $args->{biosQ}          =   _createBiosampleQuery($args->{biosQpar});
-
 
 # catching input errors #######################################################
 
@@ -69,9 +65,7 @@ my $response    =   {
 
 };
 
-print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->canonical()->encode($response);
-
-print ."\n";
+print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->canonical()->encode($response)."\n";
 
 exit;
 
@@ -96,7 +90,6 @@ sub _getDatasetParams {
   if ($qPar->{samplecoll} !~ /^\w{3,64}$/) { $qPar->{samplecoll} = 'biosamples' }
 
   $qPar->{dataset_id}   =   param('dataset_id');
-
   $qPar->{assembly_id}  =   param('assembly_id');
   if ($qPar->{assembly_id} !~ /^\w{3,64}$/) { $qPar->{assembly_id} = 'GRCh36' }
 
