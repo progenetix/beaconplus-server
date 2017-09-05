@@ -60,7 +60,7 @@ my $response    =   {
   info  =>  {
     query_string        =>  $ENV{QUERY_STRING},
     biosample_Request   =>  $args->{biosQ},
-    version     =>  'Beacon+ implementation based on a development branch of the beacon-team project: https://github.com/ga4gh/beacon-team/pull/94',
+    version             =>  'Beacon+ implementation based on a development branch of the beacon-team project: https://github.com/ga4gh/beacon-team/pull/94',
   },
 
 };
@@ -146,7 +146,7 @@ Atributes not used (yet):
     id
     bio_characteristics.ontology_terms.term_id
   )) { $qPar->{$_}      =   [ param('biosamples.'.$_) ] }
-
+#print Dumper($qPar);
   return $qPar;
 
 }
@@ -202,8 +202,8 @@ sub _normVariantParams {
   my $qPar      =   $_[0];
 
   # creating the intervals for range queries, while checking for right order
-  # this also fills in min = max if only one parameter has been for start or
-  # end, respectively
+  # this also fills in min = max if only one parameter has been provided
+  # for start or end, respectively
   foreach my $side (qw(start end)) {
 
     my $parKeys =   [ grep{ /^$side(?:_m(?:(?:in)|(?:ax)))?$/ } keys %$qPar ];
@@ -429,8 +429,6 @@ sub _getDataset {
   my @bsQvarQlist       =   ();
   my $csBiosampleIds    =   [];
 
-  #
-  #
   # if ($args->{procPar}->{varinfobios} > 0) {
   #
   #   $dbCall =   $dbconn->run_command([
@@ -462,7 +460,6 @@ sub _getDataset {
   }
 
   # sanity check; if biosample query but no ids => no match
-
   if (
     (grep{ /.../ } keys %{ $args->{biosQ} } )
     &&
@@ -488,11 +485,11 @@ sub _getDataset {
 
   ################################################################################
 
-  $dbCall =   $dbconn->run_command([
-                "distinct"=>  $args->{datasetPar}->{samplecoll},
-                "key"   =>  'bio_characteristics.ontology_terms.term_id',
-                "query" =>  { id =>  { '$in' => $csBiosampleIds } },
-              ]);
+  $dbCall       =   $dbconn->run_command([
+                      "distinct"=>  $args->{datasetPar}->{samplecoll},
+                      "key"     =>  'bio_characteristics.ontology_terms.term_id',
+                      "query"   =>  { id =>  { '$in' => $csBiosampleIds } },
+                    ]);
 
   my $bsOntologyTermIds =   $dbCall->{values};
 
@@ -542,9 +539,9 @@ sub _getDataset {
     exists      =>  $counts->{exists},
     error       =>  $args->{errorM},
     frequency   =>  1 * $counts->{frequency},
-    variant_count       =>  $counts->{v_matched},
-    call_count  =>  $counts->{cs_matched},
-    sample_count        =>  $counts->{bs_var_matched},
+    variant_count       => 1 * $counts->{v_matched},
+    call_count  =>  1 * $counts->{cs_matched},
+    sample_count        =>  1 * $counts->{bs_var_matched},
     note        =>  q{},
     external_url        =>  'http://arraymap.org',
     info        =>  {
