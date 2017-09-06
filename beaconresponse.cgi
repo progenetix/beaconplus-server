@@ -265,7 +265,7 @@ sub _createBiosampleQuery {
 
     my @thisQlist;
 
-    foreach (grep{/.../} @{$qPar->{$qKey}}) { push(@thisQlist, {$qKey => qr/$_/i}) }
+    foreach (grep{/.../} @{$qPar->{$qKey}}) { push(@thisQlist, {$qKey => qr/(?:^|\:)$_(?:$|\:)/i}) }
 
 =pod
 
