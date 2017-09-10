@@ -50,6 +50,7 @@ if ($args->{varQpar}->{variant_type} =~ /^D(?:UP)|(?:EL)$/i) {
 my $datasetResponses    =   _getDatasetResponses($args);
 my $bcExists    =   \0;
 if (grep{ $_->{exists} } @$datasetResponses) { $bcExists = \1 }
+
 my $response    =   {
   beacon_id     =>  "org.progenetix:progenetix-beacon",
   exists        =>  $bcExists,
@@ -59,7 +60,7 @@ my $response    =   {
   dataset_allele_responses      =>   $datasetResponses,
   info  =>  {
     query_string        =>  $ENV{QUERY_STRING},
-    biosample_Request   =>  $args->{biosQ},
+#    biosample_Request   =>  $args->{biosQ},
     version             =>  'Beacon+ implementation based on a development branch of the beacon-team project: https://github.com/ga4gh/beacon-team/pull/94',
   },
 
@@ -124,7 +125,11 @@ sub _getProcessingParams {
   if ($qPar->{phenotypes} =~ /^(?:y(?:es)?)|1$/i) { $qPar->{phenotypes} = 1 }
 
   $qPar->{ontologies}   =   [ param('ontologies') ];
-  if ($qPar->{ontologies}->[0] !~ /^[\w\:]+?$/i) { push(@{$qPar->{ontologies}}, 'NCIT') }
+  if (
+    $qPar->{ontologies}->[0] !~ /^[\w\:]+?$/i
+    &&
+    $qPar->{phenotypes} == 1
+  ) { push(@{$qPar->{ontologies}}, 'ncit') }
   $qPar->{ontologies}   =   [ grep{ /^[\w\:\/\-]+?$/ } @{$qPar->{ontologies}} ];
 
   return $qPar;
@@ -146,7 +151,7 @@ Atributes not used (yet):
     id
     bio_characteristics.ontology_terms.term_id
   )) { $qPar->{$_}      =   [ param('biosamples.'.$_) ] }
-#print Dumper($qPar);
+
   return $qPar;
 
 }
@@ -265,7 +270,10 @@ sub _createBiosampleQuery {
 
     my @thisQlist;
 
-    foreach (grep{/.../} @{$qPar->{$qKey}}) { push(@thisQlist, {$qKey => qr/(?:^|\:)$_(?:$|\:)/i}) }
+    foreach (grep{/.../} @{$qPar->{$qKey}}) {
+      my $match =   qr/(?:^|\:)$_(?:$|\:)/i;
+      push(@thisQlist, { $qKey => $match });
+    }
 
 =pod
 
@@ -376,9 +384,9 @@ sub _getDataset {
 
   # getting and  counting the ids of all biosamples which match the biosample query
   $dbCall       =   $dbconn->run_command([
-                      "distinct"  =>  $args->{datasetPar}->{samplecoll},
-                      "key"       =>  'id',
-                      "query"     =>  $args->{biosQ},
+                      "distinct"=>  $args->{datasetPar}->{samplecoll},
+                      "key"     =>  'id',
+                      "query"   =>  $args->{biosQ},
                     ]);
   my $biosampleIds      =   $dbCall->{values};
   $counts->{bs_matched} =   scalar(@{ $biosampleIds });
@@ -405,6 +413,9 @@ sub _getDataset {
   my $variant_ids       =   $dbCall->{values};
   $counts->{v_matched}  =   scalar(@{ $variant_ids });
 
+  if ($counts->{v_matched} > 0) { $counts->{exists} = \1 }
+  else { $counts->{exists} = \0 }
+
   # getting and  counting all callset ids with matching variants
   $dbCall       =   $dbconn->run_command([
                       "distinct"=>  $args->{datasetPar}->{varcoll},
@@ -414,86 +425,54 @@ sub _getDataset {
   my $callsetIds        =   $dbCall->{values};
   $counts->{cs_matched} =   scalar(@{ $callsetIds });
 
-  if ($counts->{v_matched} > 0) { $counts->{exists} = \1 }
-  else { $counts->{exists} = \0 }
+=pod
 
+The following query retrieves and counts all biosample ids for the matching
+variants. This is a shortcut compared to the query chain based on a minimal
+GA4GH format, which requires variants => callsets => biosamples (i.e. retrieving
+the biosample_id values from the callsets containing matched variants). This
+query depends on the (not GA4GH schema defined) existence of
+calls.info.biosample_id in the variants collections.
 
+=cut
 
-  ###############################################################################
+  $dbCall       =   $dbconn->run_command([
+                      "distinct"=>  $args->{datasetPar}->{varcoll},
+                      "key"     =>  'calls.info.biosample_id',
+                      "query"   =>  { _id => { '$in' => $variant_ids } },
+                    ]);
+  my $varBiossampleIds  =   $dbCall->{values};
 
-  # getting and counting all biosample ids from those callsets,
-  # which are both fulfilling the biosample metadata query and are listed
-  # in the matched callsets
-
-  my $bsQvarQmatchedQ   =   {};
-  my @bsQvarQlist       =   ();
-  my $csBiosampleIds    =   [];
-
-  # if ($args->{procPar}->{varinfobios} > 0) {
-  #
-  #   $dbCall =   $dbconn->run_command([
-  #                 "distinct"    =>  $args->{datasetPar}->{varcoll},
-  #                 "key"         =>  'calls.info.biosample_id',
-  #                 "query"       =>  {
-  #                   '$and'      => [
-  #                       $args->{varQ},
-  #                       { "calls.info.biosample_id" => { '$in' => $biosampleIds }},
-  #                     ]
-  #                   },
-  #               ]);
-  #   $bsQvarQmatchedQ    =   $dbCall->{values};
-  #
-  # }
-
+  ##############################################################################
 
   if (grep{ /.../ } keys %{ $args->{biosQ} } ) {
-    push(@bsQvarQlist, { biosample_id => { '$in' => $biosampleIds } } );
-  }
-  if (grep{ /.../ } keys %{ $args->{varQ} } ) {
-    push(@bsQvarQlist, { id => { '$in' => $callsetIds } } );
+    my %getIntersect		=		map{ $_ => 1 } @{ $varBiossampleIds };
+	  $varBiossampleIds   =  [ grep{ $getIntersect{ $_ } } @{ $biosampleIds } ];
   }
 
-  if (@bsQvarQlist > 1) {
-    $bsQvarQmatchedQ    =   { '$and' => [ @bsQvarQlist ] };
-  } elsif (@bsQvarQlist == 1) {
-    $bsQvarQmatchedQ    =   @bsQvarQlist[0];
-  }
-
-  # sanity check; if biosample query but no ids => no match
-  if (
-    (grep{ /.../ } keys %{ $args->{biosQ} } )
-    &&
-    ($counts->{bs_matched} < 1)
-  ) {
-    $csBiosampleIds     =   [];
-  } else {
-
-    $dbCall     =   $dbconn->run_command([
-                      "distinct"=>  $args->{datasetPar}->{callsetcoll},
-                      "key"     =>  'biosample_id',
-                      "query"   =>  $bsQvarQmatchedQ,
-                    ]);
-    $csBiosampleIds     =   $dbCall->{values};
-
-  }
-
-  $counts->{bs_var_matched}     =   scalar(@{ $csBiosampleIds });
+  $counts->{bs_var_matched}     =   scalar(@{ $varBiossampleIds });
   $counts->{frequency}          =   'NA';
   if ($counts->{bs_all} > 0) {
     $counts->{frequency}        =   sprintf "%.4f",  $counts->{bs_var_matched} / $counts->{bs_all};
   }
 
-  ################################################################################
+  ##############################################################################
 
-  $dbCall       =   $dbconn->run_command([
+  my $bsOntologyTermIds =   [];
+  # getting all ontology term_id values for the matching biosamples
+
+  if ($counts->{bs_var_matched} > 0) {
+    $dbCall      =   $dbconn->run_command([
                       "distinct"=>  $args->{datasetPar}->{samplecoll},
                       "key"     =>  'bio_characteristics.ontology_terms.term_id',
-                      "query"   =>  { id =>  { '$in' => $csBiosampleIds } },
+                      "query"   =>  { id =>  { '$in' => $varBiossampleIds } },
                     ]);
 
-  my $bsOntologyTermIds =   $dbCall->{values};
+    $bsOntologyTermIds =   $dbCall->{values};
 
-  ################################################################################
+  }
+
+  ##############################################################################
 
   my $bsPhenotypeResponse       =   [];
 
@@ -503,33 +482,33 @@ sub _getDataset {
 
       if (any { $ontoTerm =~ /^$_/i } @{$args->{procPar}->{ontologies}} ) {
 
-        $dbCall   =   $dbconn->run_command([
+        $dbCall =   $dbconn->run_command([
                           "distinct"=>  $args->{datasetPar}->{samplecoll},
                           "key"     =>  'id',
                           "query"   =>  { 'bio_characteristics.ontology_terms.term_id' => $ontoTerm },
                         ]);
         my $ontoNo  =   scalar(@{ $dbCall->{values} });
 
-        $dbCall   =   $dbconn->run_command([
+        $dbCall =   $dbconn->run_command([
                         "distinct"=>  $args->{datasetPar}->{samplecoll},
                         "key"     =>  'id',
                         "query"   =>  { '$and' => [
                                         { 'bio_characteristics.ontology_terms.term_id' => $ontoTerm },
-                                        { id =>  { '$in' => $csBiosampleIds } },
+                                        { id =>  { '$in' => $varBiossampleIds } },
                                       ] },
                       ]);
-        my $ontoObs =   scalar(@{ $dbCall->{values} });
+        my $ontoObs     =   scalar(@{ $dbCall->{values} });
 
         push(
           @$bsPhenotypeResponse,
           {
-            term_id       =>   $ontoTerm,
-            count         =>   $ontoNo,
-            observations  =>   $ontoObs,
+            term_id     =>   $ontoTerm,
+            count       =>   $ontoNo,
+            observations=>   $ontoObs,
           }
         );
-
-  }}}
+      }
+  }}
 
   ################################################################################
 
@@ -545,7 +524,7 @@ sub _getDataset {
     note        =>  q{},
     external_url        =>  'http://arraymap.org',
     info        =>  {
-#      ontology_ids              => $bsOntologyTermIds,
+      ontology_ids              => $bsOntologyTermIds,
       ontology_selection        => $args->{procPar}->{ontologies},
       phenotype_response        => $bsPhenotypeResponse,
       description       =>  'The query was against database "'.$db.'", variant collection "'.$args->{datasetPar}->{varcoll}.'". '.$counts->{cs_matched}.' / '.$counts->{cs_all}.' matched callsets for '.$counts->{var_all}.' variants. Out of '.$counts->{bs_all}.' biosamples in the database, '.$counts->{bs_matched}.' matched the biosample query; of those, '.$counts->{bs_var_matched}.' had the variant.',
