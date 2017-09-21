@@ -477,14 +477,16 @@ sub _getDataset {
   }
 
   $counts->{bs_var_matched}     =   scalar(@{ $csBiosampleIds });
-  $counts->{frequency}          =   \0;
+  $counts->{frequency}          =   0;
   if ($counts->{bs_all} > 0) {
     $counts->{frequency}        =   sprintf "%.4f",  $counts->{bs_var_matched} / $counts->{bs_all};
   }
+
   $counts->{bs_match_frequency} =   $counts->{frequency};
   if ($counts->{bs_matched} > 0) {
     $counts->{bs_match_frequency}       =   sprintf "%.4f",  $counts->{bs_var_matched} / $counts->{bs_matched};
   }
+
   ################################################################################
 
   $dbCall       =   $dbconn->run_command([
