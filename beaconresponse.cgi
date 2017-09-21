@@ -445,7 +445,6 @@ sub _getDataset {
   #
   # }
 
-
   if (grep{ /.../ } keys %{ $args->{biosQ} } ) {
     push(@bsQvarQlist, { biosample_id => { '$in' => $biosampleIds } } );
   }
@@ -482,9 +481,9 @@ sub _getDataset {
   if ($counts->{bs_all} > 0) {
     $counts->{frequency}        =   sprintf "%.4f",  $counts->{bs_var_matched} / $counts->{bs_all};
   }
-  $counts->{bs_match_frequency} =   \0;
-  if ($counts->{bs_all} > 0) {
-    $counts->{frequency}        =   sprintf "%.4f",  $counts->{bs_var_matched} / $counts->{bs_matched};
+  $counts->{bs_match_frequency} =   $counts->{frequency};
+  if ($counts->{bs_matched} > 0) {
+    $counts->{bs_match_frequency}       =   sprintf "%.4f",  $counts->{bs_var_matched} / $counts->{bs_matched};
   }
   ################################################################################
 
