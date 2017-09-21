@@ -212,7 +212,7 @@ sub _normVariantParams {
 
   }
 
-  $qPar->{reference_name} =~  s/chr?o?//i;
+  $qPar->{reference_name}       =~  s/chr?o?//i;
 
   return $qPar;
 
@@ -222,7 +222,7 @@ sub _normVariantParams {
 
 sub _checkParameters {
 
-  my $qPar              =   $_[0];
+  my $qPar      =   $_[0];
 
   my $args->{errorM};
 
