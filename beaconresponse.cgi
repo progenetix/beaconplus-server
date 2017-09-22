@@ -205,11 +205,9 @@ sub _normVariantParams {
   # this also fills in min = max if only one parameter has been provided
   # for start or end, respectively
   foreach my $side (qw(start end)) {
-
     my $parKeys =   [ grep{ /^$side(?:_m(?:(?:in)|(?:ax)))?$/ } keys %$qPar ];
     my $parVals =   [ grep{ /^\d+?$/ } @{ $qPar }{ @$parKeys } ];
     $qPar->{$side.'_range'}     =  [ min(@$parVals), max(@$parVals) ];
-
   }
 
   $qPar->{reference_name}       =~  s/chr?o?//i;
@@ -229,11 +227,7 @@ sub _checkParameters {
   if (
     $qPar->{variant_type} =~ /^D(?:UP)|(?:EL)$/
     &&
-    (
-    $qPar->{start_range}->[0] !~ /^\d+?$/
-    ||
-    $qPar->{end_range}->[0] !~ /^\d+?$/
-    )
+    ( $qPar->{start_range}->[0] !~ /^\d+?$/ || $qPar->{end_range}->[0] !~ /^\d+?$/ )
   ) {
     $args->{errorM}     .=    '"variants.start" (and also start_min, start_max) or "variants.end" (and also end_min, end_max) did not contain a numeric value. ';
   }
@@ -385,62 +379,59 @@ sub _getDataset {
 
   ###############################################################################
 
-  # counting all variants in the variant collection
-  $counts->{var_all}    =   $dbconn->get_collection( $args->{datasetPar}->{varcoll} )->count;
+  my $varColl   =   $dbconn->get_collection( $args->{datasetPar}->{varcoll} );
 
-  # counting all callsets with any variant
-  $dbCall       =   $dbconn->run_command([
+  # counting all variants in the variant collection
+  $counts->{var_all}    =   $varColl->count;
+
+  # retrieving all matching calls (lists in variants)
+  my $cursor	  =		$dbconn->get_collection( $args->{datasetPar}->{varcoll} )->find( $args->{varQ} )->fields( { calls => 1 } );
+	my $mVars	    =		[ $cursor->all ];
+
+  $counts->{v_matched}  =   scalar(@{ $mVars });
+  if ($counts->{v_matched} > 0) { $counts->{exists} = \1 }
+
+
+  my %callSets  =   ();
+
+  if ($dataset =~ /dgv/i) {
+
+    $counts->{c_matched}        =   0;
+
+    # In the dgv dataset, "callsets" are in  reality "studies", with the
+    # information about samples coming from "sample_size" (of the study)
+    # and "count".
+    foreach my $var (@$mVars) {
+      foreach (@{ $var->{calls} }) {
+        $callSets{ $_->{call_set_id} }  =   $_->{info}->{sample_size};
+        $counts->{c_matched}    +=  $_->{info}->{count};
+      }
+    }
+
+    $counts->{cs_all}   =   0;
+    foreach (keys %callSets) { $counts->{cs_all}  +=  $callSets{$_} }
+
+  } else {
+
+    foreach my $var (@$mVars) {
+      foreach (@{ $var->{calls} }) {
+        $callSets{ $_->{call_set_id} }  =   1;
+      }
+    }
+
+    # counting all callsets with any variant
+    $dbCall     =   $dbconn->run_command([
                       "distinct"=>  $args->{datasetPar}->{varcoll},
                       "key"     =>  'calls.call_set_id',
                       "query"   =>  {},
                     ]);
-  $counts->{cs_all}     =   scalar(@{ $dbCall->{values} });
-
-  # getting and  counting all matching variants
-  $dbCall       =   $dbconn->run_command([
-                      "distinct"=>  $args->{datasetPar}->{varcoll},
-                      "key"     =>  '_id',
-                      "query"   =>  $args->{varQ},
-                    ]);
-  my $variant_ids       =   $dbCall->{values};
-  $counts->{v_matched}  =   scalar(@{ $variant_ids });
-
-  # getting and  counting all callset ids with matching variants
-  $dbCall       =   $dbconn->run_command([
-                      "distinct"=>  $args->{datasetPar}->{varcoll},
-                      "key"     =>  'calls.call_set_id',
-                      "query"   =>  { _id => { '$in' => $variant_ids } },
-                    ]);
-  my $callsetIds        =   $dbCall->{values};
-  $counts->{cs_matched} =   scalar(@{ $callsetIds });
-
-
-  # special case DGV (and possibly other datasets with aggregated call counts)
-
-  if ($dataset =~ /dgv/i) {
-
-
-
-
-
-
+    $counts->{cs_all}           =   scalar(@{ $dbCall->{values} });
+    $counts->{c_matched}        =   scalar(keys %callSets);
 
   }
 
-  # / end DGV et al.
-
-
-
-
-
-
-
-
-
-  if ($counts->{v_matched} > 0) { $counts->{exists} = \1 }
-  else { $counts->{exists} = \0 }
-
-
+  my $callsetIds        =   [ keys %callSets ];
+  $counts->{cs_matched} =   scalar(@{ $callsetIds });
 
   ###############################################################################
 
@@ -451,22 +442,6 @@ sub _getDataset {
   my $bsQvarQmatchedQ   =   {};
   my @bsQvarQlist       =   ();
   my $csBiosampleIds    =   [];
-
-  # if ($args->{procPar}->{varinfobios} > 0) {
-  #
-  #   $dbCall =   $dbconn->run_command([
-  #                 "distinct"    =>  $args->{datasetPar}->{varcoll},
-  #                 "key"         =>  'calls.info.biosample_id',
-  #                 "query"       =>  {
-  #                   '$and'      => [
-  #                       $args->{varQ},
-  #                       { "calls.info.biosample_id" => { '$in' => $biosampleIds }},
-  #                     ]
-  #                   },
-  #               ]);
-  #   $bsQvarQmatchedQ    =   $dbCall->{values};
-  #
-  # }
 
   if (grep{ /.../ } keys %{ $args->{biosQ} } ) {
     push(@bsQvarQlist, { biosample_id => { '$in' => $biosampleIds } } );
@@ -500,6 +475,7 @@ sub _getDataset {
   }
 
   $counts->{bs_var_matched}     =   scalar(@{ $csBiosampleIds });
+
   $counts->{frequency}          =   0;
   if ($counts->{bs_all} > 0) {
     $counts->{frequency}        =   sprintf "%.4f",  $counts->{bs_var_matched} / $counts->{bs_all};
@@ -509,6 +485,14 @@ sub _getDataset {
   if ($counts->{bs_matched} > 0) {
     $counts->{bs_match_frequency}       =   sprintf "%.4f",  $counts->{bs_var_matched} / $counts->{bs_matched};
   }
+
+
+if ($dataset =~ /dgv/i) {
+  $counts->{bs_var_matched}     =   "NA";
+  $counts->{bs_match_frequency} =   "NA";
+}
+
+
 
   ################################################################################
 
@@ -567,9 +551,10 @@ sub _getDataset {
     error       =>  $args->{errorM},
     frequency   =>  1 * $counts->{frequency},
     variant_count       => 1 * $counts->{v_matched},
-    call_count  =>  1 * $counts->{cs_matched},
-    sample_count        =>  1 * $counts->{bs_var_matched},
-    note        =>  q{},
+    call_count  =>  1 * $counts->{c_matched},
+    callset_count       =>  1 * $counts->{cs_matched},
+    sample_count        =>  ($dataset =~ /dgv/i ? "NA" : 1 * $counts->{bs_var_matched}),
+    note        =>  ($dataset =~ /dgv/i ? 'Callsets represent the study count.' : q{}),
     external_url        =>  'http://arraymap.org',
     info        =>  {
 #      ontology_ids              => $bsOntologyTermIds,

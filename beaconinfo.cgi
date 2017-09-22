@@ -76,9 +76,7 @@ foreach my $db (@dbList) {
       $datasetRefs{$1}  =   1;
     }
 
-    if ( $_ =~ /variants/i ) {
-      $varNo    += $docNo;
-    }
+    if ( $_ =~ /variants/i ) { $varNo += $docNo }
 
   }
 
@@ -111,11 +109,7 @@ foreach my $db (@dbList) {
 
 $beaconInfo->{supportedRefs}    =   [ keys %allRefs ];
 
-
-
-print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->encode($beaconInfo);
-
-print ."\n";
+print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->encode($beaconInfo)."\n";
 
 exit;
 
