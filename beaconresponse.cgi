@@ -55,7 +55,7 @@ my $response    =   {
   exists        =>  $bcExists,
   allele_request        =>  $args->{varQ},
   api_version   =>  "0.4",
-  url   =>  'http://progenetix.org/beacon/info/',
+  url           =>  'http://progenetix.org/beacon/info/',
   dataset_allele_responses      =>   $datasetResponses,
   info  =>  {
     query_string        =>  $ENV{QUERY_STRING},
@@ -391,12 +391,22 @@ sub _getDataset {
   $counts->{v_matched}  =   scalar(@{ $mVars });
   if ($counts->{v_matched} > 0) { $counts->{exists} = \1 }
 
+  my %callSets          =   ();
+  my $callsetIds        =   [];
 
-  my %callSets  =   ();
+  $counts->{c_matched}  =   0;
+  $counts->{c_all}      =   0;
+  $counts->{frequency}  =   0;
+  $counts->{cs_all}     =   0;
+
+  my $payload   =   {};
 
   if ($dataset =~ /dgv/i) {
 
-    $counts->{c_matched}        =   0;
+    # DGV ####################################################################
+
+    my %dgsvar  =   ();
+    my %dgssvar =   ();
 
     # In the dgv dataset, "callsets" are in  reality "studies", with the
     # information about samples coming from "sample_size" (of the study)
@@ -405,17 +415,41 @@ sub _getDataset {
       foreach (@{ $var->{calls} }) {
         $callSets{ $_->{call_set_id} }  =   $_->{info}->{sample_size};
         $counts->{c_matched}    +=  $_->{info}->{count};
+        foreach my $ssvar (split(',', $_->{info}->{supporting_variants})) {
+          $dgssvar{$ssvar}        =   1;
+        }
+        foreach my $svar (split(',', $_->{info}->{accession})) {
+          $dgsvar{$svar}         =   1;
+        }
       }
     }
 
-    $counts->{cs_all}   =   0;
-    foreach (keys %callSets) { $counts->{cs_all}  +=  $callSets{$_} }
+    foreach (keys %callSets) {
+      $counts->{cs_all} +=  $callSets{$_};
+      $counts->{c_all}  +=  $callSets{$_};
+    }
+
+    $callsetIds =   [ keys %callSets ];
+    $counts->{cs_matched}       =   scalar(@{ $callsetIds });
+
+
+    if ($counts->{c_all} > 0) {
+      $counts->{frequency}      =   sprintf "%.4f",  $counts->{c_matched} / $counts->{c_all};
+    }
+
+    $payload    =   {
+      supporting_variants       =>   [ sort keys %dgssvar ],
+      variants                  =>   [ sort keys %dgsvar ],
+    };
+
+    # / DGV ##################################################################
 
   } else {
 
     foreach my $var (@$mVars) {
       foreach (@{ $var->{calls} }) {
         $callSets{ $_->{call_set_id} }  =   1;
+        $counts->{c_matched}    +=   1;
       }
     }
 
@@ -426,12 +460,16 @@ sub _getDataset {
                       "query"   =>  {},
                     ]);
     $counts->{cs_all}           =   scalar(@{ $dbCall->{values} });
-    $counts->{c_matched}        =   scalar(keys %callSets);
+
+    $callsetIds =   [ keys %callSets ];
+    $counts->{cs_matched}       =   scalar(@{ $callsetIds });
+    if ($counts->{cs_all} > 0) {
+      $counts->{frequency}      =   sprintf "%.4f",  $counts->{cs_matched} / $counts->{cs_all};
+    }
 
   }
 
-  my $callsetIds        =   [ keys %callSets ];
-  $counts->{cs_matched} =   scalar(@{ $callsetIds });
+
 
   ###############################################################################
 
@@ -476,23 +514,16 @@ sub _getDataset {
 
   $counts->{bs_var_matched}     =   scalar(@{ $csBiosampleIds });
 
-  $counts->{frequency}          =   0;
-  if ($counts->{bs_all} > 0) {
-    $counts->{frequency}        =   sprintf "%.4f",  $counts->{bs_var_matched} / $counts->{bs_all};
-  }
+  $counts->{bs_match_frequency} =   \0;
 
-  $counts->{bs_match_frequency} =   $counts->{frequency};
   if ($counts->{bs_matched} > 0) {
     $counts->{bs_match_frequency}       =   sprintf "%.4f",  $counts->{bs_var_matched} / $counts->{bs_matched};
   }
 
-
-if ($dataset =~ /dgv/i) {
-  $counts->{bs_var_matched}     =   "NA";
-  $counts->{bs_match_frequency} =   "NA";
-}
-
-
+  if ($dataset =~ /dgv/i) {
+    $counts->{bs_var_matched}     =   "NA";
+    $counts->{bs_match_frequency} =   "NA";
+  }
 
   ################################################################################
 
@@ -555,6 +586,7 @@ if ($dataset =~ /dgv/i) {
     callset_count       =>  1 * $counts->{cs_matched},
     sample_count        =>  ($dataset =~ /dgv/i ? "NA" : 1 * $counts->{bs_var_matched}),
     note        =>  ($dataset =~ /dgv/i ? 'Callsets represent the study count.' : q{}),
+    payload     =>  $payload,
     external_url        =>  'http://arraymap.org',
     info        =>  {
 #      ontology_ids              => $bsOntologyTermIds,
