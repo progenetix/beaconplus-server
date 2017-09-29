@@ -9,7 +9,7 @@ use CGI qw(param);
 
 use JSON;
 use List::Util qw(min max);
-use List::MoreUtils qw(any);
+use List::MoreUtils qw(any apply);
 use MongoDB;
 use MongoDB::MongoClient;
 use Data::Dumper;
@@ -206,7 +206,8 @@ sub _normVariantParams {
   # for start or end, respectively
   foreach my $side (qw(start end)) {
     my $parKeys =   [ grep{ /^$side(?:_m(?:(?:in)|(?:ax)))?$/ } keys %$qPar ];
-    my $parVals =   [ grep{ /^\d+?$/ } @{ $qPar }{ @$parKeys } ];
+    my $parVals =   [ grep{ /\d/ } @{ $qPar }{ @$parKeys } ];
+    $parVals    =   [ apply { $_ =~ s/[^\d]//g } @{ $parVals } ];
     $qPar->{$side.'_range'}     =  [ min(@$parVals), max(@$parVals) ];
   }
 
@@ -521,8 +522,8 @@ sub _getDataset {
   }
 
   if ($dataset =~ /dgv/i) {
-    $counts->{bs_var_matched}     =   "NA";
-    $counts->{bs_match_frequency} =   "NA";
+    $counts->{bs_var_matched}           =   "NA";
+    $counts->{bs_match_frequency}       =   "NA";
   }
 
   ################################################################################
@@ -577,18 +578,18 @@ sub _getDataset {
 
   return   {
 
-    dataset_id  =>  $dataset,
-    exists      =>  $counts->{exists},
-    error       =>  $args->{errorM},
-    frequency   =>  1 * $counts->{frequency},
-    variant_count       => 1 * $counts->{v_matched},
-    call_count  =>  1 * $counts->{c_matched},
+    dataset_id          =>  $dataset,
+    exists              =>  $counts->{exists},
+    error               =>  $args->{errorM},
+    frequency           =>  1 * $counts->{frequency},
+    variant_count       =>  1 * $counts->{v_matched},
+    call_count          =>  1 * $counts->{c_matched},
     callset_count       =>  1 * $counts->{cs_matched},
     sample_count        =>  ($dataset =~ /dgv/i ? "NA" : 1 * $counts->{bs_var_matched}),
-    note        =>  ($dataset =~ /dgv/i ? 'Callsets represent the study count.' : q{}),
-    payload     =>  $payload,
+    note                =>  ($dataset =~ /dgv/i ? 'Callsets represent the study count.' : q{}),
+    payload             =>  $payload,
     external_url        =>  'http://arraymap.org',
-    info        =>  {
+    info                =>  {
 #      ontology_ids              => $bsOntologyTermIds,
       ontology_selection        =>  $args->{procPar}->{ontologies},
       phenotype_response        =>  $bsPhenotypeResponse,
@@ -596,7 +597,6 @@ sub _getDataset {
       bs_direct                 =>  $counts->{bs_direct},
       bs_match_frequency        =>  $counts->{bs_match_frequency},
     },
-
 
   };
 
