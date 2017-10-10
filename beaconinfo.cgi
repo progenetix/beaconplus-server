@@ -35,7 +35,7 @@ my $description =   'A forward looking implementation for Beacon+ development, w
 
 
 my $dbClient    =   MongoDB::MongoClient->new();
-my @dbList      =   grep{ /_ga4gh/ } $dbClient->database_names();
+my @dbList;
 
 if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
 
@@ -52,7 +52,7 @@ my $beaconInfo  =   {
 
 my %allRefs;
 
-foreach my $db (@dbList) {
+foreach my $db (grep{ /_ga4gh/ } $dbClient->database_names()) {
 
   my $datasetId =   $db;
   $datasetId    =~  s/_ga4gh$//i;
@@ -62,6 +62,10 @@ foreach my $db (@dbList) {
   my $collInfos =   [];
   my $varNo     =   0;
 #  my $callNo    =   0;
+
+  if (! grep{/variants/} @collList) { next }
+
+  push (@dbList, $db);
 
   foreach (@collList) {
 
