@@ -11,18 +11,18 @@ use JSON;
 use MongoDB;
 use MongoDB::MongoClient;
 
-my $db					=		param('db');
+my $datasetId		=		param('dataset_id');
 my $collection  =		'bioontologies';
 my $afqfield	  =		param('afqfield');
 my $request	    =		param('querytext');
 
-if ($db !~ /_ga4gh/ ) 	{ $db = 'arraymap_ga4gh' }
+if ($datasetId !~ /_ga4gh$/ ) 	{ $datasetId .= '_ga4gh' }
 if ($afqfield !~ /\w\w\w/ ) { $afqfield = 'term_id' }
 if ($request !~ /^[\w\_\:]{1,64}/ ) { $request = '..' }
 
 ################################################################################
 
-my $dbconn			=		MongoDB::MongoClient->new()->get_database( $db );
+my $dbconn			=		MongoDB::MongoClient->new()->get_database( $datasetId );
 my $fields		  =		{ _id	=>	0, term_id => 1, infolabel => 1 };
 my $cursor		  =		$dbconn->get_collection( $collection )->find( { $afqfield => qr/$request/i } )->fields( $fields );
 my @items       =   $cursor->all;
