@@ -15,12 +15,12 @@
 
 The script uses some naming conventions for databases and collections:
 
-* `db` (as a MongoDB database)
+* MongoDB database (in our implementation)
    * `dataset_id`_ga4gh
 * collections
    * `individuals`
    * `biosamples`
-   * `callsets`_`assembly_id` (e.g. *callsets_grch36*)
+   * `callsets`\_variantType\_`assembly_id` (e.g. *callsets_cnv_grch36*,  *callsets_snv_grch38*)
    * `variants`\_scope\_`assembly_id` (e.g. *variants_cnv_grch36*)
 
 
