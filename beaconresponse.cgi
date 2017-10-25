@@ -13,10 +13,18 @@ use List::MoreUtils qw(any apply);
 use MongoDB;
 use MongoDB::MongoClient;
 use Data::Dumper;
+use UUID::Tiny;
 
 =pod
 
 Please see the associated beaconresponse.md
+
+Query & response processing:
+
+variantQuery (varQ) =>
+
+
+
 =cut
 
 if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
@@ -222,30 +230,16 @@ sub _normVariantParams {
 sub _checkParameters {
 
   my $qPar      =   $_[0];
+  my $error;
 
-  my $args->{errorM};
-
-  if (
-    $qPar->{variant_type} =~ /^D(?:UP)|(?:EL)$/
-    &&
-    ( $qPar->{start_range}->[0] !~ /^\d+?$/ || $qPar->{end_range}->[0] !~ /^\d+?$/ )
-  ) {
-    $args->{errorM}     .=    '"variants.start" (and also start_min, start_max) or "variants.end" (and also end_min, end_max) did not contain a numeric value. ';
-  }
-
+  if ( $qPar->{variant_type} =~ /^D(?:UP)|(?:EL)$/ && ( $qPar->{start_range}->[0] !~ /^\d+?$/ || $qPar->{end_range}->[0] !~ /^\d+?$/ ) ) {
+    $error      .=    '"variants.start" (and also start_min, start_max) or "variants.end" (and also end_min, end_max) did not contain a numeric value. ' }
   if ($qPar->{reference_name} !~ /^(?:(?:(?:1|2)?\d)|x|y)$/i) {
-    $args->{errorM}     .=    '"variants.reference_name" did not contain a valid value (e.g. "chr17" "8", "X"). ';
-  }
+    $error      .=    '"variants.reference_name" did not contain a valid value (e.g. "chr17" "8", "X"). ' }
+  if ( $qPar->{variant_type} !~ /^D(?:UP)|(?:EL)$/ && $qPar->{alternate_bases} !~ /^[ATGC]+?$/ ) {
+    $error      .=    'There was no valid value for either "variants.variant_type" or "variants.alternate_bases". ' }
 
-  if (
-  ($qPar->{variant_type} !~ /^D(?:UP)|(?:EL)$/)
-  &&
-  ($qPar->{alternate_bases} !~ /^[ATGC]+?$/)
-  ) {
-    $args->{errorM}     .=    'There was no valid value for either "variants.variant_type" or "variants.alternate_bases". ';
-  }
-
-  return $args->{errorM};
+  return $error;
 
 }
 
@@ -296,20 +290,24 @@ sub _createVariantQuery {
   my $qPar      =   $_[0];
   my $qObj      =   {};
 
+  #structural query
   if ($qPar->{variant_type} =~ /^D(?:UP)|(?:EL)$/) {
 
     $qObj       =   {
       '$and'    => [
         { reference_name        =>  $qPar->{reference_name} },
         { variant_type          =>  $qPar->{variant_type} },
-        { start =>  { '$gte'  =>  1 * $qPar->{start_range}->[0] } },
-        { start =>  { '$lte'  =>  1 * $qPar->{start_range}->[1] } },
-        { end   =>  { '$gte'  =>  1 * $qPar->{end_range}->[0] } },
-        { end   =>  { '$lte'  =>  1 * $qPar->{end_range}->[1] } },
+        { start =>  { '$gte'    =>  1 * $qPar->{start_range}->[0] } },
+        { start =>  { '$lte'    =>  1 * $qPar->{start_range}->[1] } },
+        { end   =>  { '$gte'    =>  1 * $qPar->{end_range}->[0] } },
+        { end   =>  { '$lte'    =>  1 * $qPar->{end_range}->[1] } },
       ],
     };
 
-  } elsif ($qPar->{alternate_bases} =~ /^[ATGC]+?$/) {
+  }
+
+  # allele query
+  elsif ($qPar->{alternate_bases} =~ /^[ATGC]+?$/) {
 
     my @qList   =   (
       { reference_name  =>  $qPar->{reference_name} },
@@ -358,7 +356,8 @@ sub _getDataset {
   my $counts    =   {};
   my $dbCall    =   {};         # recyclable
   my $db        =   $dataset.'_ga4gh';
-  my $dbconn    =   MongoDB::MongoClient->new()->get_database( $db );
+  $db           =~  s/_ga4gh_ga4gh/_ga4gh/;
+  my  $dbconn   =   MongoDB::MongoClient->new()->get_database( $db );
 
 =pod
 
@@ -369,7 +368,10 @@ sub _getDataset {
   # getting the number of all biosamples in the collection
   $counts->{bs_all}     =   $dbconn->get_collection( $args->{datasetPar}->{samplecoll} )->count;
 
-  # getting and  counting the ids of all biosamples which match the biosample query
+  # getting and  counting the ids of all biosamples which match the biosample
+  # query
+  # $biosampleIds are used later against the callsets (all csids which have
+  # one of the matching $biosampleIds)
   $dbCall       =   $dbconn->run_command([
                       "distinct"  =>  $args->{datasetPar}->{samplecoll},
                       "key"       =>  'id',
@@ -402,9 +404,9 @@ sub _getDataset {
 
   my $payload   =   {};
 
-  if ($dataset =~ /dgv/i) {
+  # DGV as a special case ######################################################
 
-    # DGV ####################################################################
+  if ($dataset =~ /dgv/i) {
 
     my %dgsvar  =   ();
     my %dgssvar =   ();
@@ -417,10 +419,10 @@ sub _getDataset {
         $callSets{ $_->{call_set_id} }  =   $_->{info}->{sample_size};
         $counts->{c_matched}    +=  $_->{info}->{count};
         foreach my $ssvar (split(',', $_->{info}->{supporting_variants})) {
-          $dgssvar{$ssvar}        =   1;
+          $dgssvar{$ssvar}      =   1;
         }
         foreach my $svar (split(',', $_->{info}->{accession})) {
-          $dgsvar{$svar}         =   1;
+          $dgsvar{$svar}        =   1;
         }
       }
     }
@@ -433,93 +435,104 @@ sub _getDataset {
     $callsetIds =   [ keys %callSets ];
     $counts->{cs_matched}       =   scalar(@{ $callsetIds });
 
-
     if ($counts->{c_all} > 0) {
-      $counts->{frequency}      =   sprintf "%.4f",  $counts->{c_matched} / $counts->{c_all};
-    }
+      $counts->{frequency}      =   sprintf "%.4f",  $counts->{c_matched} / $counts->{c_all} }
 
     $payload    =   {
       supporting_variants       =>   [ sort keys %dgssvar ],
       variants                  =>   [ sort keys %dgsvar ],
     };
 
-    # / DGV ##################################################################
+  }
 
-  } else {
+  # / DGV ######################################################################
+
+  else {
 
     foreach my $var (@$mVars) {
       foreach (@{ $var->{calls} }) {
         $callSets{ $_->{call_set_id} }  =   1;
-        $counts->{c_matched}    +=   1;
+        $counts->{c_matched}            +=  1;
       }
     }
 
     # counting all callsets with any variant
-    $dbCall     =   $dbconn->run_command([
-                      "distinct"=>  $args->{datasetPar}->{varcoll},
-                      "key"     =>  'calls.call_set_id',
-                      "query"   =>  {},
-                    ]);
-    $counts->{cs_all}           =   scalar(@{ $dbCall->{values} });
+    $counts->{cs_all}   =   _count_mongo_distinct(
+                              $dbconn,
+                              $args->{datasetPar}->{varcoll},
+                              'calls.call_set_id',
+                              {},
+                            );
 
     $callsetIds =   [ keys %callSets ];
     $counts->{cs_matched}       =   scalar(@{ $callsetIds });
     if ($counts->{cs_all} > 0) {
-      $counts->{frequency}      =   sprintf "%.4f",  $counts->{cs_matched} / $counts->{cs_all};
-    }
+      $counts->{frequency}      =   sprintf "%.4f",  $counts->{cs_matched} / $counts->{cs_all} }
 
   }
-
-
 
   ###############################################################################
 
   # getting and counting all biosample ids from those callsets,
   # which are both fulfilling the biosample metadata query and are listed
   # in the matched callsets
-
   my $bsQvarQmatchedQ   =   {};
   my @bsQvarQlist       =   ();
-  my $csBiosampleIds    =   [];
+  my $csBiosampleIds    =   []; # biosample ids with varQ and biosQ match
+  my $csBiomatchCsIds   =   []; # callset ids with varQ and biosQ match
 
+  # if there had been a biosample query, the biosamples are limited to the
+  # ones having previously matched biosample_id values
   if (grep{ /.../ } keys %{ $args->{biosQ} } ) {
-    push(@bsQvarQlist, { biosample_id => { '$in' => $biosampleIds } } );
-  }
+    push(@bsQvarQlist, { biosample_id => { '$in' => $biosampleIds } } ) }
+
+  # callsets are restricted to the ones having a matching variant (determined
+  # before) and biosample
   if (grep{ /.../ } keys %{ $args->{varQ} } ) {
-    push(@bsQvarQlist, { id => { '$in' => $callsetIds } } );
-  }
+    push(@bsQvarQlist, { id => { '$in' => $callsetIds } } ) }
 
   if (@bsQvarQlist > 1) {
-    $bsQvarQmatchedQ    =   { '$and' => [ @bsQvarQlist ] };
-  } elsif (@bsQvarQlist == 1) {
-    $bsQvarQmatchedQ    =   @bsQvarQlist[0];
-  }
+    $bsQvarQmatchedQ    =   { '$and' => [ @bsQvarQlist ] } }
+  elsif (@bsQvarQlist == 1) {
+    $bsQvarQmatchedQ    =   @bsQvarQlist[0] }
 
-  # sanity check; if biosample query but no ids => no match
-  if (
-    (grep{ /.../ } keys %{ $args->{biosQ} } )
-    &&
-    ($counts->{bs_matched} < 1)
-  ) {
+  # sanity check; if there was a biosample query but no ids => no match
+  if ( (grep{ /.../ } keys %{ $args->{biosQ} } ) && $counts->{bs_matched} < 1) {
     $csBiosampleIds     =   [];
-  } else {
+    $csBiomatchCsIds    =   [];
+  }
+  else {
+    $csBiosampleIds     =   _get_mongo_distinct(
+                              $dbconn,
+                              $args->{datasetPar}->{callsetcoll},
+                              'biosample_id',
+                              $bsQvarQmatchedQ,
+                            );
+    $csBiomatchCsIds    =   _get_mongo_distinct(
+                              $dbconn,
+                              $args->{datasetPar}->{callsetcoll},
+                              '_id',
+                              $bsQvarQmatchedQ,
+                            );
 
-    $dbCall     =   $dbconn->run_command([
-                      "distinct"=>  $args->{datasetPar}->{callsetcoll},
-                      "key"     =>  'biosample_id',
-                      "query"   =>  $bsQvarQmatchedQ,
-                    ]);
-    $csBiosampleIds     =   $dbCall->{values};
+    # storing callset ids for retrieval
+    $args->{access_id}  =   create_UUID_as_string();
+    my $stored_cs    =   {
+      _id               =>  $args->{access_id},
+      query_key         =>  '_id',
+      query_db          =>  $db,
+      query_coll        =>  $args->{datasetPar}->{callsetcoll},
+      query_values      =>  $csBiomatchCsIds,
+    };
+    MongoDB::MongoClient->new()->get_database( 'progenetix' )->get_collection( 'querybuffer' )->insert($stored_cs);
 
   }
 
   $counts->{bs_var_matched}     =   scalar(@{ $csBiosampleIds });
-
   $counts->{bs_match_frequency} =   \0;
 
   if ($counts->{bs_matched} > 0) {
-    $counts->{bs_match_frequency}       =   sprintf "%.4f",  $counts->{bs_var_matched} / $counts->{bs_matched};
-  }
+    $counts->{bs_match_frequency}       =   sprintf "%.4f",  $counts->{bs_var_matched} / $counts->{bs_matched} }
 
   if ($dataset =~ /dgv/i) {
     $counts->{bs_var_matched}           =   "NA";
@@ -528,13 +541,12 @@ sub _getDataset {
 
   ################################################################################
 
-  $dbCall       =   $dbconn->run_command([
-                      "distinct"=>  $args->{datasetPar}->{samplecoll},
-                      "key"     =>  'bio_characteristics.ontology_terms.term_id',
-                      "query"   =>  { id =>  { '$in' => $csBiosampleIds } },
-                    ]);
-
-  my $bsOntologyTermIds =   $dbCall->{values};
+  my $bsOntologyTermIds =   _get_mongo_distinct(
+                              $dbconn,
+                              $args->{datasetPar}->{samplecoll},
+                              'bio_characteristics.ontology_terms.term_id',
+                              { id =>  { '$in' => $csBiosampleIds } },
+                            );
 
   ################################################################################
 
@@ -546,22 +558,21 @@ sub _getDataset {
 
       if (any { $ontoTerm =~ /^$_/i } @{$args->{procPar}->{ontologies}} ) {
 
-        $dbCall   =   $dbconn->run_command([
-                          "distinct"=>  $args->{datasetPar}->{samplecoll},
-                          "key"     =>  'id',
-                          "query"   =>  { 'bio_characteristics.ontology_terms.term_id' => $ontoTerm },
-                        ]);
-        my $ontoNo  =   scalar(@{ $dbCall->{values} });
-
-        $dbCall   =   $dbconn->run_command([
-                        "distinct"=>  $args->{datasetPar}->{samplecoll},
-                        "key"     =>  'id',
-                        "query"   =>  { '$and' => [
-                                        { 'bio_characteristics.ontology_terms.term_id' => $ontoTerm },
-                                        { id =>  { '$in' => $csBiosampleIds } },
-                                      ] },
-                      ]);
-        my $ontoObs =   scalar(@{ $dbCall->{values} });
+        my $ontoNo  =   _count_mongo_distinct(
+                          $dbconn,
+                          $args->{datasetPar}->{samplecoll},
+                          'id',
+                          { 'bio_characteristics.ontology_terms.term_id' => $ontoTerm },
+                        );
+        my $ontoObs =   _count_mongo_distinct(
+                          $dbconn,
+                          $args->{datasetPar}->{samplecoll},
+                          'id',
+                          { '$and' => [
+                            { 'bio_characteristics.ontology_terms.term_id' => $ontoTerm },
+                            { id =>  { '$in' => $csBiosampleIds } },
+                          ] },
+                        );
 
         push(
           @$bsPhenotypeResponse,
@@ -588,17 +599,40 @@ sub _getDataset {
     sample_count        =>  ($dataset =~ /dgv/i ? "NA" : 1 * $counts->{bs_var_matched}),
     note                =>  ($dataset =~ /dgv/i ? 'Callsets represent the study count.' : q{}),
     payload             =>  $payload,
-    external_url        =>  'http://arraymap.org',
+    external_url        =>  'http://beacon.arraymap.org',
     info                =>  {
-#      ontology_ids              => $bsOntologyTermIds,
+      callset_access_handle     =>  $args->{access_id},
       ontology_selection        =>  $args->{procPar}->{ontologies},
       phenotype_response        =>  $bsPhenotypeResponse,
       description               =>  'The query was against database "'.$db.'", variant collection "'.$args->{datasetPar}->{varcoll}.'". '.$counts->{cs_matched}.' / '.$counts->{cs_all}.' matched callsets for '.$counts->{var_all}.' variants. Out of '.$counts->{bs_all}.' biosamples in the database, '.$counts->{bs_matched}.' matched the biosample query; of those, '.$counts->{bs_var_matched}.' had the variant.',
-      bs_direct                 =>  $counts->{bs_direct},
       bs_match_frequency        =>  $counts->{bs_match_frequency},
     },
 
   };
+
+}
+
+sub _get_mongo_distinct {
+
+  my ($dbconn, $collname, $key, $query) =   @_;
+  my $dbCall    =   $dbconn->run_command([
+                      "distinct"=>  $collname,
+                      "key"     =>  $key,
+                      "query"   =>  $query,
+                    ]);
+  return $dbCall->{values};
+
+}
+
+sub _count_mongo_distinct {
+
+  my ($dbconn, $collname, $key, $query) =   @_;
+  my $dbCall    =   $dbconn->run_command([
+                      "distinct"=>  $collname,
+                      "key"     =>  $key,
+                      "query"   =>  $query,
+                    ]);
+  return scalar(@{ $dbCall->{values} } );
 
 }
 
