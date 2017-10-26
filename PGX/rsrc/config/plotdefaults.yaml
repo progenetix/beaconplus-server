@@ -1,0 +1,79 @@
+#
+---
+chr2plot: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', 'X', 'Y']
+genome: hg18
+
+# values
+value_plot_y_max: 100
+label_y_m: [ -75, -50, -25, 0, 25, 50, 75 ]
+plot_unit_y: ""
+plottype_values:
+ array:
+  value_plot_y_max: 3.5
+  label_y_m: [ -3, -2.5, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 2.5, 3 ]
+  plot_unit_y: ""
+ histogram:
+  value_plot_y_max: 100
+  label_y_m: [ -75, -50, -25, 0, 25, 50, 75 ]
+  plot_unit_y: "%"
+ ideogram:
+  value_plot_y_max: 100
+  label_y_m: [ -75, -50, -25, 0, 25, 50, 75 ]
+  plot_unit_y: "%"
+label_bottom_left: ""
+
+# directives
+do_label_y: y
+do_plottype: histogram
+
+# sizes
+size_plotmargin_px: 25
+size_plotmargin_top_px: 25
+size_plotmargin_bottom_px: 25
+size_text_px: 12
+size_plotarea_h_px: 100
+size_plotimage_w_px: 800
+size_fracbarea_h_px: 60
+size_label_y_w_px: 25
+size_chromosome_w_px: 12
+size_chromosome_padding_px: 5
+size_samplestrip_w_px: 15
+size_frequencystrip_w_px: 15
+size_matrixline_w_px: 14
+size_segments_stroke_px: 3
+size_clustertree_w_px: -1
+factor_probedots: 1
+
+# colors
+color_plotarea_hex: '#f3f9ff'
+color_plotbackground_hex: '#ffffff'
+color_text_hex: '#000000'
+color_var_break_hex: '#EE00DD'
+color_var_dup_hex: '#FFC633'
+color_var_del_hex: '#33A0FF'
+color_var_amp_hex: '#FF6600'
+color_var_homoloss_hex: '#0033CC'
+color_connection_opacity: 0.2
+
+color_schema: orangeblue
+colorschemas:
+ orangeblue:
+  color_var_dup_hex: '#FFC633'
+  color_var_del_hex: '#33A0FF'
+  color_var_amp_hex: '#FF6600'
+  color_var_homoloss_hex: '#0033CC'
+ redgreen:
+  color_var_dup_hex: '#EE4500'
+  color_var_del_hex: '#09F911'
+  color_var_amp_hex: '#CD0000'
+  color_var_homoloss_hex: '#008B00'
+ greenred:
+  color_var_del_hex: '#EE4500'
+  color_var_dup_hex: '#09F911'
+  color_var_amp_hex: '#008B00'
+  color_var_homoloss_hex: '#CD0000'
+ bluered:
+  color_var_dup_hex: '#FFC633'
+  color_var_del_hex: '#33A0FF'
+  color_var_amp_hex: '#FF6600'
+  color_var_homoloss_hex: '#0033CC'

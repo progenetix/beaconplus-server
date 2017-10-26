@@ -5,15 +5,21 @@
 
 use strict;
 use CGI::Carp qw(fatalsToBrowser);
-use CGI qw(param);
+use CGI qw(:standard param *table);
 
 use JSON;
-use List::Util qw(min max);
-use List::MoreUtils qw(any apply);
 use MongoDB;
 use MongoDB::MongoClient;
 use Data::Dumper;
 use UUID::Tiny;
+
+# local packages
+use PGX::GenomeIntervals::CytobandReader;
+use PGX::GenomeIntervals::GenomeIntervals;
+use PGX::GenomeIntervals::IntervalStatistics;
+use PGX::GenomePlots::HistoPlotter;
+use PGX::GenomePlots::PlotParameters;
+use PGX::GenomePlots::Genomeplot;
 
 =pod
 
@@ -23,32 +29,114 @@ Please see the associated beaconresponse.md
 
 =cut
 
-if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
+our $tempdb     =   'progenetix';
+our $tmpcoll    =   'querybuffer';
 
-my $args        =   {};
+#if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
 
-my $tempdb      =   'progenetix';
-my $tmpcoll     =   'querybuffer';
-my $access_id   =   param('accessid');
+# parameters
+our $access_id  =   param('accessid');
+our $submit     =   param('submit');
+our $cgi        = new CGI;
 
-$MongoDB::Cursor::timeout = 120000;
+print $cgi->header;
+print $cgi->start_html(-title => 'Beacon+ Handover Prototype');
 
-my  $tmpcoll    =   MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection($tmpcoll);
+_add_form();
+_print_histogram();
+_export_callsets();
 
-my $tmpdata     =   $tmpcoll->find_one( { _id	=>  $access_id } );
+print $cgi->end_html;
 
-my $datacoll    =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} )->get_collection($tmpdata->{query_coll});
+################################################################################
 
-my $dataQuery   =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
+sub _add_form {
 
-my $cursor	    =		$datacoll->find( $dataQuery )->fields( { 'statusmaps.dupmap' => 1 } );
-my $data	      =		[ $cursor->all ];
-print Dumper($data);
+  my $table     =   '
+<table>
+  <tr><td>User / email</td><td>';
+  $table        .=  $cgi->textfield(
+                      -name       => 'user',
+                      -value      => '',
+                      -size       => 20,
+                      -maxlength  => 30,
+                    );
+  $table        .=   '</td></tr>
+  <tr><td>Password</td><td>';
+  $table        .=  $cgi->password_field(
+                      -name       => 'pass',
+                      -value      => '',
+                      -size       => 20,
+                      -maxlength  => 30,
+                    );
+  $table        .=   '</td></tr>
+  <tr><td></td><td>';
+    $table      .=  $cgi->submit(
+                      -name       => 'submit',
+                      -value      => 'Generate Histogram Plot!',
+                    );
+  $table        .=   '</td></tr>
+  <tr><td></td><td>';
+    $table      .=  $cgi->submit(
+                      -name       => 'submit',
+                      -value      => 'Export Callset Data',
+                    );
+  $table        .=  '</td></tr>
+</table>';
 
+  print $cgi->start_form;
+  print $cgi->hidden(
+    -name       => 'accessid',
+    -default    => $access_id,
+  );
+  print $table;
+  print $cgi->end_form;
 
+}
 
+sub _print_histogram {
 
+  if ($submit !~ /histo/i) { return }
 
+  my $args        =   {};
+  $args->{'-genome'}      =   'grch36';
+  $args->{'-binning'}     =   1000000;
+  $args->{'-plotid'}      =   'histoplot';
+  $args->{'-chr2plot'}    =   '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,X';
+
+  $MongoDB::Cursor::timeout = 120000;
+
+  my $tmpcoll     =   MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection($tmpcoll);
+  my $tmpdata     =   $tmpcoll->find_one( { _id	=>  $access_id } );
+  my $datacoll    =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} )->get_collection($tmpdata->{query_coll});
+  my $dataQuery   =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
+  my $cursor	    =		$datacoll->find( $dataQuery )->fields( { 'info' => 1 } );
+  my $data	      =		[ $cursor->all ];
+
+  my $plot        =   new PGX::GenomePlots::Genomeplot($args);
+  my $fMaps       =   interval_cnv_frequencies([map{$_->{info}->{statusmaps}} @$data ], $plot->{genomeintervals});
+  $plot           =   return_histoplot_svg($plot, $fMaps);
+
+#  print 'Content-type: image/svg+xml'."\n\n";
+  print $plot->{svg};
+
+}
+
+sub _export_callsets {
+
+  if ($submit !~ /export/i) { return }
+
+  $MongoDB::Cursor::timeout = 120000;
+
+  my $tmpcoll     =   MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection($tmpcoll);
+  my $tmpdata     =   $tmpcoll->find_one( { _id	=>  $access_id } );
+  my $datacoll    =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} )->get_collection($tmpdata->{query_coll});
+  my $dataQuery   =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
+  my $cursor	    =		$datacoll->find( $dataQuery )->fields( { 'info' => 0 } );
+
+  print	JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
+
+}
 
 
 1;
