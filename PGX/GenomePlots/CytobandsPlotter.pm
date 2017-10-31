@@ -24,17 +24,35 @@ Returns:
 
   my $areaX_0   =   $plot->{parameters}->{size_plotmargin_px};
 
+  $plot->{svg}  .=  '
+  <defs>';
   $plot->{svg}  .=  _cytoband_svg_gradients($plot->{plotid});
+  $plot->{svg}  .=  '
+  <style type="text/css">
+  <![CDATA[
+  .chrlab { text-anchor: middle; font-size: '.$plot->{parameters}->{size_text_px}.'px }
+  ]]>
+  </style>';
+  $plot->{svg}  .=  '
+  </defs>';
+
+  my $chrolabY  =   $plot->{Y} + $plot->{parameters}->{size_text_px} + $plot->{parameters}->{size_chromosome_padding_px};
+  my $chroBandY =   $chrolabY + $plot->{parameters}->{size_chromosome_padding_px};
 
   foreach my $refName (@{ $plot->{parameters}->{chr2plot} }) {
 
     my $areaW   =  sprintf "%.1f", $plot->{referencebounds}->{$refName}->[1] * $plot->{basepixfrac};
+    my $chroX   =  sprintf "%.1f", $areaX_0 + $areaW / 2;
+
+    $plot->{svg}        .=  '
+<text x="'.$chroX.'" y="'.$chrolabY.'" class="chrlab">'.$refName.'</text>';
+
     my $plotInd =  [ grep{
           $refName eq	$plot->{cytobands}->[$_]->{reference_name} } 0..$#{$plot->{cytobands}} ];
     foreach my $i (@$plotInd) {
       my $cbX	  =		sprintf "%.1f", $areaX_0 + $plot->{basepixfrac} * $plot->{cytobands}->[$i]->{start};
       my $cbW	  =		sprintf "%.1f", $plot->{basepixfrac} * ($plot->{cytobands}->[$i]->{end} - $plot->{cytobands}->[$i]->{start});
-      my $cbY	  =		$plot->{Y};
+      my $cbY	  =		$chroBandY;
       my $cbH		=   $plot->{parameters}->{size_chromosome_w_px};
 
       # terminal and centromere bands are more narrow
@@ -61,7 +79,7 @@ Returns:
     $areaX_0	  +=	$areaW + $plot->{parameters}->{size_chromosome_padding_px};
   }
 
-  $plot->{Y}    +=  $plot->{parameters}->{size_chromosome_w_px};
+  $plot->{Y}    +=  $chroBandY + $plot->{parameters}->{size_chromosome_w_px};
 
   return $plot;
 

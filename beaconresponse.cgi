@@ -380,7 +380,28 @@ sub _getDataset {
   my $biosampleIds      =   $dbCall->{values};
   $counts->{bs_matched} =   scalar(@{ $biosampleIds });
 
-  ###############################################################################
+  ##############################################################################
+
+# TODO: Subset the variants for the biosample matches first
+# 1. match callsets for biosample matching the biosample query by getting all
+#    callset IDs of the matched biosamples
+
+  # if there had been a biosample query, the biosamples are limited to the
+  # ones having previously matched biosample_id values
+  if (grep{ /.../ } keys %{ $args->{biosQ} } ) {
+    my $csBioMatchedIds =   _get_mongo_distinct(
+                              $dbconn,
+                              $args->{datasetPar}->{callsetcoll},
+                              'id',
+                              { biosample_id => { '$in' =>  $biosampleIds } },
+                            );
+    $args->{varQ}       =   { '$and' =>
+      [
+        $args->{varQ},
+        { 'calls.call_set_id' => { '$in' =>  $csBioMatchedIds } },
+      ],
+    };
+  }
 
   my $varColl   =   $dbconn->get_collection( $args->{datasetPar}->{varcoll} );
 
