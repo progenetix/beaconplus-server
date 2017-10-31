@@ -79,7 +79,7 @@ Returns:
     $areaX_0	  +=	$areaW + $plot->{parameters}->{size_chromosome_padding_px};
   }
 
-  $plot->{Y}    +=  $chroBandY + $plot->{parameters}->{size_chromosome_w_px};
+  $plot->{Y}    =  $chroBandY + $plot->{parameters}->{size_chromosome_w_px} + $plot->{parameters}->{size_chromosome_padding_px};
 
   return $plot;
 

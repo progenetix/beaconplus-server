@@ -31,7 +31,6 @@ sub new {
                                       $self->{parameters}->{chr2plot},
                                     );
 
-
   return $self;
 
 }

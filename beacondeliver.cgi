@@ -65,7 +65,6 @@ sub _print_histogram {
 
   my $tmpcoll   =   MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection($tmpcoll);
   my $tmpdata   =   $tmpcoll->find_one( { _id	=>  $access_id } );
-
   if ($tmpdata->{query_coll} =~ /_(((?:grch)|(?:hg))\d\d)$/i) {
     $args->{'-genome'}  =   $1 }
 
