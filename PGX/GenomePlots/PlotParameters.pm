@@ -5,7 +5,7 @@ use YAML::XS 'LoadFile';
 
 require Exporter;
 @ISA        =   qw(Exporter);
-@EXPORT     =   qw(read_plot_defaults args_modify_plot_parameters);
+@EXPORT     =   qw(read_plot_defaults args_modify_plot_parameters hex2rgb);
 
 ################################################################################
 
@@ -64,10 +64,22 @@ Returns:
     }
   }
   
+  # derived
+  
+  $plotPars->{pixyfactor}   =   $plotPars->{size_plotarea_h_px} / (2 * $plotPars->{value_plot_y_max});
+  
   return $plotPars;
   
 }
 
 ################################################################################
+
+sub hex2rgb {
+
+    my ($r, $g, $b)			=		$_[0]	=~	m/^\#?(\w{2})(\w{2})(\w{2})$/;
+
+    return [ CORE::hex($r), CORE::hex($g), CORE::hex($b) ];
+
+}
 
 1;
