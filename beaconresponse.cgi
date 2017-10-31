@@ -19,12 +19,6 @@ use UUID::Tiny;
 
 Please see the associated beaconresponse.md
 
-Query & response processing:
-
-variantQuery (varQ) =>
-
-
-
 =cut
 
 if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
@@ -66,8 +60,7 @@ my $response    =   {
   dataset_allele_responses      =>   $datasetResponses,
   info  =>  {
     query_string        =>  $ENV{QUERY_STRING},
-    biosample_request   =>  $args->{biosQ},
-    version             =>  'Beacon+ implementation based on a development branch of the beacon-team project: https://github.com/ga4gh/beacon-team/pull/94',
+    version             =>  'Beacon+ implementation based on the development branch of the beacon-team project: https://github.com/ga4gh/beacon-team/blob/develop-proto/src/main/proto/ga4gh/beacon.proto',
   },
 
 };
