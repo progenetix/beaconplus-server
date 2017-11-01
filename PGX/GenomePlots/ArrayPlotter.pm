@@ -58,15 +58,14 @@ Returns:
   foreach my $refName (@{ $plot->{parameters}->{chr2plot} }) {
 
     my $areaW   =  sprintf "%.1f", $plot->{referencebounds}->{$refName}->[1] * $plot->{basepixfrac};
-
-		my $areaProbes	=	 [ grep{ $_->{chromosome} eq $refName } @$probes ];
+		my $areaProbes	=	 [ grep{ $_->{reference_name} eq $refName } @$probes ];
 		$areaProbes			=	 [ grep{ $_->{position} <= $plot->{referencebounds}->{$refName}->[1] } @$areaProbes];
 		$areaProbes			=	 [ grep{ $_->{position} >= $plot->{referencebounds}->{$refName}->[0] } @$areaProbes ];
 
     $plot->{svg}    .=  '
 <rect x="'.$areaX_0.'" y="'.$plot->{Y}.'" width="'.$areaW.'" height="'.$plot->{parameters}->{size_plotarea_h_px}.'" style="fill: '.$plot->{parameters}->{color_plotarea_hex}.'; fill-opacity: 0.8; " />';
 
-    my $gdDotS      =   2;
+    my $gdDotS      =   1 * $plot->{parameters}->{factor_probedots};
 		my $probeArea	  =   GD::Image->new($areaW, $plot->{parameters}->{size_plotarea_h_px}, 1);
     my $gdAreaCol   =   $probeArea->colorAllocate( @{ hex2rgb($plot->{parameters}->{color_plotarea_hex}) } );
     $probeArea->transparent($gdAreaCol);
@@ -74,11 +73,9 @@ Returns:
 		$probeArea->filledRectangle(0, 0, $areaW, $plot->{parameters}->{size_plotarea_h_px}, $gdAreaCol);
 
 		foreach (@$areaProbes) {
-
 			my $dotX      =   sprintf "%.2f", $plot->{basepixfrac} * $_->{position};
-			my $dotY	    =   sprintf "%.2f", ($plot->{parameters}->{size_plotarea_h_px} / 2 - $_->{value} * $plotPars->{pixyfactor});
+			my $dotY	    =   sprintf "%.2f", ($plot->{parameters}->{size_plotarea_h_px} / 2 - $_->{value} * $plot->{parameters}->{pixyfactor});
       $probeArea->filledEllipse($dotX, $dotY, $gdDotS, $gdDotS, $gdDotcol);
-
     }
 
     $plot->{svg}    .=  '
@@ -88,9 +85,9 @@ Returns:
   width="'.$areaW.'"
   height="'.$plot->{parameters}->{size_plotarea_h_px}.'"
   xlink:href="data:image/png;base64,'.encode_base64($probeArea->png).'"
-/>'
+/>';
 
-    $areaX_0		        +=	$areaW + $plot->{parameters}->{size_chromosome_padding_px};
+    $areaX_0		+=	$areaW + $plot->{parameters}->{size_chromosome_padding_px};
   }
 
   $plot->{Y}    +=  $plot->{parameters}->{size_plotarea_h_px};

@@ -65,8 +65,7 @@ Returns:
   }
   
   # derived
-  
-  $plotPars->{pixyfactor}   =   $plotPars->{size_plotarea_h_px} / (2 * $plotPars->{value_plot_y_max});
+  $plotPars->{pixyfactor}   =   1 * $plotPars->{size_plotarea_h_px} / (2 * $plotPars->{value_plot_y_max});
   
   return $plotPars;
   
