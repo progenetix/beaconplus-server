@@ -39,6 +39,32 @@ my @dbList;
 
 if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
 
+if (param('q') =~ /get_datasetids/i) {
+
+  my $beaconInfo    =   {};
+  foreach my $db (grep{ /_ga4gh/ } $dbClient->database_names()) {
+
+    my $datasetId       =   $db;
+    $datasetId          =~  s/_ga4gh$//i;
+    push(@{ $beaconInfo->{dataset} }, {datasetId => $datasetId});
+
+
+  }
+  print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->encode($beaconInfo)."\n";
+  exit;
+
+}
+
+
+
+
+
+
+
+
+
+
+
 my $beaconInfo  =   {
   beaconId      =>  $beaconId,
   provider      =>  $provider,
