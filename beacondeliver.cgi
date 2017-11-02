@@ -14,11 +14,11 @@ use Data::Dumper;
 use UUID::Tiny;
 
 # local packages
-use PGX::GenomeIntervals::CytobandReader;
-use PGX::GenomeIntervals::GenomeIntervals;
+# use PGX::GenomeIntervals::CytobandReader;
+# use PGX::GenomeIntervals::GenomeIntervals;
 use PGX::GenomeIntervals::IntervalStatistics;
 use PGX::GenomePlots::HistoPlotter;
-use PGX::GenomePlots::PlotParameters;
+# use PGX::GenomePlots::PlotParameters;
 use PGX::GenomePlots::Genomeplot;
 
 =pod
