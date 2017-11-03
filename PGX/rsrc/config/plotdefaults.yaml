@@ -29,29 +29,33 @@ label_bottom_left: ""
 # directives
 do_label_y: y
 do_plottype: histogram
+do_chromosomes_proportional: y
 
 # sizes
 size_plotmargin_px: 25
 size_plotmargin_top_px: 25
 size_plotmargin_bottom_px: 25
 size_text_px: 12
+size_text_lab_px: 6
 size_plotarea_h_px: 100
 size_plotimage_w_px: 800
 size_fracbarea_h_px: 60
 size_label_y_w_px: 25
 size_chromosome_w_px: 12
-size_chromosome_padding_px: 5
+size_chromosome_padding_px: 3
 size_samplestrip_w_px: 15
 size_frequencystrip_w_px: 15
 size_matrixline_w_px: 14
-size_segments_stroke_px: 3
+size_segments_stroke_px: 2
 size_clustertree_w_px: -1
-factor_probedots: 3
+factor_probedots: 1
 
 # colors
 color_plotarea_hex: '#f3f9ff'
 color_plotbackground_hex: '#ffffff'
+color_plotgrid_hex: '#c0e3ee'
 color_text_hex: '#000000'
+color_label_y_hex: '#666666'
 color_var_break_hex: '#EE00DD'
 color_var_dup_hex: '#FFC633'
 color_var_del_hex: '#33A0FF'

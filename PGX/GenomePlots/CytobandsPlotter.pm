@@ -22,6 +22,10 @@ Returns:
 
   my $plot      =   shift;
 
+  # one can skip cytoband plotting by setting the "size_chromosome_w_px"
+  # parameter < 1
+  if ($plot->{parameters}->{size_chromosome_w_px} < 1) { return $plot }
+
   my $areaX_0   =   $plot->{parameters}->{size_plotmargin_px};
 
   $plot->{svg}  .=  '

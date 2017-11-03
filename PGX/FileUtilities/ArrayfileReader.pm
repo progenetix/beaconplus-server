@@ -4,7 +4,7 @@ use Data::Dumper;
 
 require Exporter;
 @ISA    =   qw(Exporter);
-@EXPORT =   qw(read_probefile read_segmentsfile);
+@EXPORT =   qw(read_probefile read_segmentfile);
 
 ################################################################################
 
@@ -41,8 +41,11 @@ Returns:
 
 ########    ####    ####    ####    ####    ####    ####    ####    ####    ####
 
-  my $probeF  	=   $_[0];
+  my $probeF  	=   shift;
+  my $plot      =   shift;
   my $probes  	=   [];
+
+	if (! -f $probeF) { return $probes }
 
   open	FILE, "$probeF" or die "No file $probeF $!";
   my $i     		=   0;
@@ -58,10 +61,10 @@ Returns:
 
   	$probe_id		=~ 	s/[^\w\-\,]/_/g;
   	$reference_name			=~ s/[^\dxXyY]//;
-  	$position		=~ 	s/\.\d+?$//;				# due to some erroneous .5 in-between pos.
-  	$position		=~ 	s/[\,\']//g;
-  	$position		=		1 * $position;
-  	$value			=		1 * $value;
+  	$reference_name			=~ s/^23$/X/;
+  	$reference_name			=~ s/^24$/Y/;
+  	$position		= 	sprintf "%.0f", $position;	# due to some erroneous .5 in-between pos.
+  	$value			=		sprintf "%.4f", $value;
 
   	if ($reference_name	!~ /^\w\d?$/) 						{ next }
   	if ($position				!~ /^\d{1,9}$/) 					{ next }
@@ -87,7 +90,7 @@ Returns:
 
 ################################################################################
 
-sub read_segmentsfile {
+sub read_segmentfile {
 
 =pod
 
@@ -132,8 +135,10 @@ Returns:
 ########    ####    ####    ####    ####    ####    ####    ####    ####    ####
 
   my $segmentsF =   shift;
-  my $param 		=   shift;
+  my $plot      =   shift;
   my $segments 	=   [];
+
+	if (! -f $segmentsF) { return $segments }
 
   open	FILE, "$segmentsF" or die "No file $segmentsF $!";
   my $i     		=   0;
@@ -153,15 +158,10 @@ Returns:
   	$reference_name			=~ s/[^\dxXyY]//;
   	$reference_name			=~ s/^23$/X/;
   	$reference_name			=~ s/^24$/Y/;
-  	$start			=~ 	s/\.\d+?$//;				# due to some erroneous .5 in-between pos.
-  	$start			=~ 	s/[\,\']//g;
-  	$start			=		1 * $start;
-  	$end				=~ 	s/\.\d+?$//;				# due to some erroneous .5 in-between pos.
-  	$end				=~ 	s/[\,\']//g;
-  	$end				=		1 * $end;
+  	$start			=		sprintf "%.0f", $start;
+  	$end  			=		sprintf "%.0f", $end;
   	$probes			=~ 	s/[^\d]//g;
-  	$value			=~	s/[^\-\.\d]//g;
-  	$value			=		1 * $value;
+  	$value			=		sprintf "%.4f", $value;
 
   	if ($reference_name	!~ /^\w\d?$/) 						{ next }
   	if ($start					!~ /^\d{1,9}$/) 					{ next }
@@ -188,15 +188,12 @@ Returns:
 
 	for my $i (0..$#{ $segments }) {
 
-    if ($segments->[$i]->{info}->{value} >= $param->{cna_gain_threshold}) {
+    if ($segments->[$i]->{info}->{value} >= $plot->{parameters}->{cna_gain_threshold}) {
       $segments->[$i]->{variant_type}  =   'DUP' }
-    elsif ($segments->[$i]->{info}->{value} <= $param->{cna_loss_threshold}) {
+    elsif ($segments->[$i]->{info}->{value} <= $plot->{parameters}->{cna_loss_threshold}) {
       $segments->[$i]->{variant_type}  =   'DEL' }
 
   }
-
-
-
 
 	return $segments;
 

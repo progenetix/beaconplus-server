@@ -4,10 +4,13 @@ use Data::Dumper;
 use PGX::GenomeIntervals::CytobandReader;
 use PGX::GenomeIntervals::GenomeIntervals;
 use PGX::GenomePlots::PlotParameters;
+use PGX::FileUtilities::ArrayfileReader;
 
 require Exporter;
 @ISA    =   qw(Exporter);
-@EXPORT =   qw(new);
+@EXPORT =   qw(new plot_add_probedata plot_add_segmentdata plot_add_probedata_fracb plot_add_segmentdata_fracb);
+
+################################################################################
 
 sub new {
 
@@ -35,6 +38,48 @@ sub new {
 
 }
 
+################################################################################
 
+sub plot_add_probedata {
+
+  my $probefile =   shift;
+  my $plot      =   shift;
+  $plot->{probedata}    =   read_probefile($probefile, $plot);
+  return $plot;
+
+}
+
+########    ####    ####    ####    ####    ####    ####    ####    ####    ####
+
+sub plot_add_segmentdata {
+
+  my $segfile   =   shift;
+  my $plot      =   shift;
+  $plot->{segmentdata}  =   read_segmentfile($segfile, $plot);
+  return $plot;
+
+}
+
+########    ####    ####    ####    ####    ####    ####    ####    ####    ####
+
+sub plot_add_probedata_fracb {
+
+  my $probefile =   shift;
+  my $plot      =   shift;
+  $plot->{probedata_fracb}    =   read_probefile($probefile, $plot);
+  return $plot;
+
+}
+
+########    ####    ####    ####    ####    ####    ####    ####    ####    ####
+
+sub plot_add_segmentdata_fracb {
+
+  my $segfile   =   shift;
+  my $plot      =   shift;
+  $plot->{segmentdata_fracb}  =   read_segmentfile($segfile, $plot);
+  return $plot;
+
+}
 
 1;

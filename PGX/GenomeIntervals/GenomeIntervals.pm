@@ -158,35 +158,8 @@ sub get_genome_basecount {
 
 }
 
-
 ################################################################################
 ########    utility subs    ####    ####    ####    ####    ####    ####    ####
 ################################################################################
-
-sub _genome_names_to_grch {
-  my %genome_names   =   (
-    hg18    =>  'grch36',
-    hg19    =>  'grch37',
-    hg38    =>  'grch38',
-  );
-  if ($_[0] =~ /^grch\d\d$/i) {
-    return lc($_[0]) }
-  else {
-    return $genome_names{lc($_[0])} }
-}
-
-################################################################################
-
-sub _genome_names_to_hg {
-  my %genome_names   =   (
-    grch36  =>  'hg18',
-    grch37  =>  'hg19',
-    grch38  =>  'hg38',
-  );
-  if ($_[0] =~ /^hg\d\d$/i) {
-    return lc($_[0]) }
-  else {
-    return $genome_names{lc($_[0])} }
-}
 
 1;
