@@ -28,9 +28,11 @@ sub return_arrayplot_svg {
   	$plotW			=		$plot->{areawidth} + 2 * $plot->{parameters}->{size_plotmargin_px};
   }
   $plot->{basepixfrac}  =   ( $plot->{areawidth} - ($#{ $plot->{parameters}->{chr2plot} } * $plot->{parameters}->{size_chromosome_padding_px}) ) / $plot->{genomesize};
+  $plot         =   get_title_svg($plot);
   $plot         =   get_cytobands_svg($plot);
   $plot         =   get_arrayplot_area($plot);
   $plot         =   get_fracb_area($plot);
+  $plot         =   get_bottom_labels_svg($plot);
   $plot->{Y}    +=   $plot->{parameters}->{size_plotmargin_bottom_px};
   my $plotH			=		sprintf "%.0f", $plot->{Y};
   $plotW				=		sprintf "%.0f", $plotW;
@@ -60,10 +62,12 @@ sub get_arrayplot_area {
 =pod
 
 Expects:
-  - the current Y parameter for placing the plot elements on the SVG
+  - the plot object with current Y parameter for placing the plot elements on
+  	the SVG
 
 Returns:
-  - the increased end Y value as start for the next elements
+  - the  extended SVG and the increased end Y value as start for
+  	the next elements
 
 =cut
 
@@ -71,37 +75,38 @@ Returns:
 
   $plot->{svg}    .=  '
 <style type="text/css"><![CDATA[
-  .gb {stroke-width: '.$plot->{parameters}->{size_segments_stroke_px}.'px; stroke: #FFC633; opacity: 0.8  }
-  .lb {stroke-width: '.$plot->{parameters}->{size_segments_stroke_px}.'px; stroke: #33A0FF; opacity: 0.8  }
-  .cen {stroke-width: 0.5px; stroke: '.$plot->{parameters}->{color_plotgrid_hex}.'; opacity: 0.8 ; }
-  .tick {stroke-width: 0.5px; stroke: '.$plot->{parameters}->{color_label_y_hex}.'; opacity: 0.8 ; }
+  .DUP {stroke-width: '.$plot->{parameters}->{size_segments_stroke_px}.'px; stroke: '.$plot->{parameters}->{color_var_dup_hex}.'; opacity: 0.8  }
+  .DEL {stroke-width: '.$plot->{parameters}->{size_segments_stroke_px}.'px; stroke: '.$plot->{parameters}->{color_var_del_hex}.'; opacity: 0.8  }
+  .cen {stroke-width: '.$plot->{parameters}->{size_centerline_stroke_px}.'px; stroke: '.$plot->{parameters}->{color_plotgrid_hex}.'; opacity: 0.8 ; }
+  .tick {stroke-width: 1px; stroke: '.$plot->{parameters}->{color_label_y_hex}.'; opacity: 0.8 ; }
   .ylab {text-anchor: end; font-size: '.$plot->{parameters}->{size_text_lab_px}.'px; fill: '.$plot->{parameters}->{color_label_y_hex}.';}
 ]]></style>';
 
   my $area_x0   =   $plot->{parameters}->{size_plotmargin_px};
   my $area_y0 	=   $plot->{Y};
-  my $area_yCen =   $plot->{Y} + $plot->{parameters}->{size_plotarea_h_px} / 2;
+  my $area_ycen =   $plot->{Y} + $plot->{parameters}->{size_plotarea_h_px} / 2;
   my $area_yn 	=   $plot->{Y} + $plot->{parameters}->{size_plotarea_h_px};
   my $lowSegY		=		$area_yn + $plot->{parameters}->{size_segments_stroke_px};
 
 	# Y labels ###    ####    ####    ####    ####    ####    ####    ####    ####
 
+
 	foreach my $lab (@{ $plot->{parameters}->{label_y_m} }) {
 
-		my $lab_y		=		sprintf "%.1f", $area_yCen - $lab * $plot->{parameters}->{pixyfactor};
+		my $lab_y		=		sprintf "%.1f", $area_ycen - $lab * $plot->{parameters}->{pixyfactor};
 
 		# checking area boundaries
 		if ($lab_y < $area_y0 || $lab_y > $area_yn) { next }
 
-    $plot->{svg}  		.=  '
+    $plot->{svg}  			.=  '
 <line x1="'.($area_x0 - 1).'"  y1="'.$lab_y.'"  x2="'.$area_x0.'"  y2="'.$lab_y.'"  class="tick"  />
 <line x1="'.($area_x0 + $plot->{areawidth}).'"  y1="'.$lab_y.'"  x2="'.($area_x0 + $plot->{areawidth} + 1).'"  y2="'.$lab_y.'"  class="tick"  />';
 
 		# avoiding too dense labels
 		if (@{ $plot->{parameters}->{label_y_m} } > 9 && $lab !~ /^\-?\d\d?\d?\%?$/ ) { next }
-
-		$lab_y		+=  ($plot->{parameters}->{size_text_lab_px} / 2) - 1;
-		$plot->{svg}  		.=  '
+		# positioning the label text
+		$lab_y							+=  ($plot->{parameters}->{size_text_lab_px} / 2) - 1;
+		$plot->{svg}  			.=  '
 <text x="'.($area_x0 - 2).'" y="'.$lab_y.'" class="ylab">'.$lab.'</text>';
 
 	}
@@ -112,36 +117,34 @@ Returns:
 
   foreach my $refName (@{ $plot->{parameters}->{chr2plot} }) {
 
-    my $areaW   =  sprintf "%.1f", $plot->{referencebounds}->{$refName}->[1] * $plot->{basepixfrac};
+    my $areaW  	=  sprintf "%.1f", ($plot->{referencebounds}->{$refName}->[1] - $plot->{referencebounds}->{$refName}->[0]) * $plot->{basepixfrac};
 
-    $plot->{svg}    .=  '
+    $plot->{svg}				.=  '
 <rect x="'.$area_x0.'" y="'.$plot->{Y}.'" width="'.$areaW.'" height="'.$plot->{parameters}->{size_plotarea_h_px}.'" style="fill: '.$plot->{parameters}->{color_plotarea_hex}.'; fill-opacity: 0.8; " />';
-
-    my $areaW   =  sprintf "%.1f", $plot->{referencebounds}->{$refName}->[1] * $plot->{basepixfrac};
 
     # probes ###    ####    ####    ####    ####    ####    ####    ####    ####
 
-		my $areaProbes	=	 [ grep{ $_->{reference_name} eq $refName } @{ $plot->{probedata} } ];
-		$areaProbes			=	 [ grep{ $_->{position} <= $plot->{referencebounds}->{$refName}->[1] } @$areaProbes];
-		$areaProbes			=	 [ grep{ $_->{position} >= $plot->{referencebounds}->{$refName}->[0] } @$areaProbes ];
+		my $areaProbes			=	 [ grep{ $_->{reference_name} eq $refName } @{ $plot->{probedata} } ];
+		$areaProbes					=	 [ grep{ $_->{position} <= $plot->{referencebounds}->{$refName}->[1] } @$areaProbes];
+		$areaProbes					=	 [ grep{ $_->{position} >= $plot->{referencebounds}->{$refName}->[0] } @$areaProbes ];
 
     # probes are plotted using GD
 
-		my $probeArea	  =   GD::Image->new($areaW, $plot->{parameters}->{size_plotarea_h_px}, 1);
-    my $gdDotS      =   1 * $plot->{parameters}->{factor_probedots};
-    my $gdAreaCol   =   $probeArea->colorAllocate( @{ hex2rgb($plot->{parameters}->{color_plotarea_hex}) } );
+		my $probeArea	  		=   GD::Image->new($areaW, $plot->{parameters}->{size_plotarea_h_px}, 1);
+    my $gdDotS      		=   1 * $plot->{parameters}->{factor_probedots};
+    my $gdAreaCol   		=   $probeArea->colorAllocate( @{ hex2rgb($plot->{parameters}->{color_plotarea_hex}) } );
     $probeArea->transparent($gdAreaCol);
-    my $gdDotcol		=	$probeArea->colorAllocateAlpha(0,0,0,111);
+    my $gdDotcol				=	$probeArea->colorAllocateAlpha(32,32,32,63);
 		$probeArea->filledRectangle(0, 0, $areaW, $plot->{parameters}->{size_plotarea_h_px}, $gdAreaCol);
 
 		foreach (@$areaProbes) {
-			my $dotX      =   sprintf "%.2f", $plot->{basepixfrac} * $_->{position};
-			my $dotY	    =   sprintf "%.2f", ($plot->{parameters}->{size_plotarea_h_px} / 2 - $_->{value} * $plot->{parameters}->{pixyfactor});
+			my $dotX      		=   sprintf "%.2f", $plot->{basepixfrac} * ($_->{position} - $plot->{referencebounds}->{$refName}->[0]);
+			my $dotY	    		=   sprintf "%.2f", ($plot->{parameters}->{size_plotarea_h_px} / 2 - $_->{value} * $plot->{parameters}->{pixyfactor});
       $probeArea->filledEllipse($dotX, $dotY, $gdDotS, $gdDotS, $gdDotcol);
     }
 
     # the GD object is encoded as base64 and embedded into the svg
-    $plot->{svg}    .=  '
+    $plot->{svg}    		.=  '
 <image
   x="'.$area_x0.'"
   y="'.$plot->{Y}.'"
@@ -154,40 +157,52 @@ Returns:
 
     # segments #    ####    ####    ####    ####    ####    ####    ####    ####
 
-		my $areaSegments	=	 [ grep{ $_->{reference_name} eq $refName } @{ $plot->{segmentdata} } ];
-		$areaSegments			=	 [ grep{ $_->{start} <= $plot->{referencebounds}->{$refName}->[1] } @$areaSegments];
-		$areaSegments			=	 [ grep{ $_->{end} >= $plot->{referencebounds}->{$refName}->[0] } @$areaSegments ];
+		my $areaSegments		=		[ grep{ $_->{reference_name} eq $refName } @{ $plot->{segmentdata} } ];
+		$areaSegments				=		[ grep{ $_->{variant_type} =~ /\w/ } @$areaSegments];
+		$areaSegments				=		[ grep{ $_->{start} <= $plot->{referencebounds}->{$refName}->[1] } @$areaSegments];
+		$areaSegments				=		[ grep{ $_->{end} >= $plot->{referencebounds}->{$refName}->[0] } @$areaSegments ];
 
 		foreach my $seg (@$areaSegments) {
 
       if ($seg->{start} < $plot->{referencebounds}->{$refName}->[0]) {
-        $seg->{start} = $plot->{referencebounds}->{$refName}->[0] }
+        $seg->{start} 	= $plot->{referencebounds}->{$refName}->[0] }
       if ($seg->{end} > $plot->{referencebounds}->{$refName}->[1]) {
-        $seg->{end} = $plot->{referencebounds}->{$refName}->[1] }
+        $seg->{end} 		= $plot->{referencebounds}->{$refName}->[1] }
 
-			my $seg_x0		    =		sprintf "%.1f", $area_x0 + $plot->{basepixfrac} * $seg->{start};
-			my $seg_xn		    =		sprintf "%.1f", $area_x0 + $plot->{basepixfrac} * $seg->{end};
-			my $seg_y				  =		sprintf "%.1f", $area_yCen - $seg->{info}->{value} * $plot->{parameters}->{pixyfactor};
+			# providing a minimum sub-pixel segment plot length
+			my $segPixLen			=		sprintf "%.1f", ($plot->{basepixfrac} * ($seg->{end} - $seg->{start}));
+			if ($segPixLen < 0.2) { $segPixLen = 0.2 }
 
-      if ($seg->{variant_type} eq 'DEL') {
+			my $seg_x0		    =		sprintf "%.1f", $area_x0 + $plot->{basepixfrac} * ($seg->{start} - $plot->{referencebounds}->{$refName}->[0]);
+			my $seg_xn		    =		$seg_x0 + $segPixLen;
+			my $seg_y				  =		sprintf "%.1f", $area_ycen - $seg->{info}->{value} * $plot->{parameters}->{pixyfactor};
+
+      $plot->{svg}    	.=  '
+<line x1="'.$seg_x0.'"  y1="'.$seg_y.'"  x2="'.$seg_xn.'"  y2="'.$seg_y.'"  class="'.$seg->{variant_type}.'"  />';
+			if (scalar @{$plot->{parameters}->{chr2plot}} == 1) {
         $plot->{svg}    .=  '
-<line x1="'.$seg_x0.'"  y1="'.$seg_y.'"  x2="'.$seg_xn.'"  y2="'.$seg_y.'"  class="lb"  />
-<line x1="'.$seg_x0.'"  y1="'.$lowSegY.'"  x2="'.$seg_xn.'"  y2="'.$lowSegY.'"  class="lb"  />';
-      } elsif ($seg->{variant_type} eq 'DUP') {
-        $plot->{svg}    .=  '
-<line x1="'.$seg_x0.'"  y1="'.$seg_y.'"  x2="'.$seg_xn.'"  y2="'.$seg_y.'"  class="gb"  />
-<line x1="'.$seg_x0.'"  y1="'.$lowSegY.'"  x2="'.$seg_xn.'"  y2="'.$lowSegY.'"  class="gb"  />';
-      }
-    }
+<a
+xlink:href="http://genome.ucsc.edu/cgi-bin/hgTracks?db='.$plot->{parameters}->{genome}.'&amp;position=chr'.$refName.'%3A'.$seg->{start}.'-'.$seg->{end}.'"
+xlink:show="new"
+xlink:title="'.$seg->{info}->{value}.' at '.$refName.':'.$seg->{start}.'-'.$seg->{end}.'">';
+			}
+      $plot->{svg}    	.=  '
+<line x1="'.$seg_x0.'"  y1="'.$lowSegY.'"  x2="'.$seg_xn.'"  y2="'.$lowSegY.'"  class="'.$seg->{variant_type}.'"  />';
+			if (scalar @{$plot->{parameters}->{chr2plot}} == 1) {
+        $plot->{svg}    .=  '</a>' }
+
+		}
 
     # / segments    ####    ####    ####    ####    ####    ####    ####    ####
 
+		# moving x to the next chromosome area
     $area_x0		+=	$areaW + $plot->{parameters}->{size_chromosome_padding_px};
 
  }
 
+	# adding a baseline at 0
   $plot->{svg}  .=  '
-<line x1="'.$plot->{parameters}->{size_plotmargin_px}.'"  y1="'.$area_yCen.'"  x2="'.($plot->{parameters}->{size_plotmargin_px} + $plot->{areawidth}).'"  y2="'.$area_yCen.'"  class="cen"  />';
+<line x1="'.$plot->{parameters}->{size_plotmargin_px}.'"  y1="'.$area_ycen.'"  x2="'.($plot->{parameters}->{size_plotmargin_px} + $plot->{areawidth}).'"  y2="'.$area_ycen.'"  class="cen"  />';
 
   $plot->{Y}    =  $lowSegY + $plot->{parameters}->{size_segments_stroke_px} / 2 + $plot->{parameters}->{size_chromosome_padding_px};
 
@@ -202,10 +217,12 @@ sub get_fracb_area {
 =pod
 
 Expects:
-  - the current Y parameter for placing the plot elements on the SVG
+  - the plot object with current Y parameter for placing the plot elements on
+  	the SVG
 
 Returns:
-  - the increased end Y value as start for the next elements
+  - the  extended SVG and the increased end Y value as start for
+  	the next elements
 
 =cut
 
@@ -226,7 +243,7 @@ Returns:
 
   my $area_x0   =   $plot->{parameters}->{size_plotmargin_px};
   my $area_y0   =   $plot->{Y} + $plot->{parameters}->{size_fracbarea_h_px};
-  my $area_yCen =   $plot->{Y} + $plot->{parameters}->{size_fracbarea_h_px} / 2;
+  my $area_ycen =   $plot->{Y} + $plot->{parameters}->{size_fracbarea_h_px} / 2;
   my $fbPixYfac	=		1 / $plot->{parameters}->{size_fracbarea_h_px};
 
   foreach my $refName (@{ $plot->{parameters}->{chr2plot} }) {
@@ -297,8 +314,10 @@ Returns:
 
     $area_x0		+=	$areaW + $plot->{parameters}->{size_chromosome_padding_px};
   }
+
+	# adding a baseline at 0.5
   $plot->{svg}  .=  '
-<line x1="'.$plot->{parameters}->{size_plotmargin_px}.'"  y1="'.$area_yCen.'"  x2="'.($plot->{parameters}->{size_plotmargin_px} + $plot->{areawidth}).'"  y2="'.$area_yCen.'"  class="cen"  />';
+<line x1="'.$plot->{parameters}->{size_plotmargin_px}.'"  y1="'.$area_ycen.'"  x2="'.($plot->{parameters}->{size_plotmargin_px} + $plot->{areawidth}).'"  y2="'.$area_ycen.'"  class="cen"  />';
 
   $plot->{Y}    +=  $plot->{parameters}->{size_fracbarea_h_px};
 

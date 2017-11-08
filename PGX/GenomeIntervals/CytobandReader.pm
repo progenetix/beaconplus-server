@@ -4,7 +4,7 @@ use Data::Dumper;
 
 require Exporter;
 @ISA    =   qw(Exporter);
-@EXPORT =   qw(read_cytobands);
+@EXPORT =   qw(read_cytobands genome_names_to_hg genome_names_to_grch);
 
 sub read_cytobands {
 
@@ -14,11 +14,11 @@ Expects:
   - as input a genome edition
   - a UCSC "cytoBandIdeo.txt" file of the given genome edition (hardcoded location):
 
-chr1	0	2300000	p36.33	gneg
-chr1	2300000	5300000	p36.32	gpos25
-chr1	5300000	7100000	p36.31	gneg
-chr1	7100000	9200000	p36.23	gpos25
-chr1	9200000	12600000	p36.22	gneg
+chr1  0 2300000 p36.33  gneg
+chr1  2300000 5300000 p36.32  gpos25
+chr1  5300000 7100000 p36.31  gneg
+chr1  7100000 9200000 p36.23  gpos25
+chr1  9200000 12600000  p36.22  gneg
 ...
 
 Returns:
@@ -26,11 +26,11 @@ Returns:
     [
       {
         no    =>  __integer__,          # 1 -> n
-        reference_name  =>	__string__,
-        start	=>	__integer__,
-        end	  =>	__integer__,
-        stain	=>	__string__,
-        label	=>	__string__,           # name of cytoband, e.g. "8q24.1"
+        reference_name  =>  __string__,
+        start =>  __integer__,
+        end   =>  __integer__,
+        stain =>  __string__,
+        label =>  __string__,           # name of cytoband, e.g. "8q24.1"
       },
       {
       ...
@@ -41,32 +41,32 @@ Returns:
 
 ########    ####    ####    ####    ####    ####    ####    ####    ####    ####
 
-  my $cbF   =   './PGX/rsrc/genomes/'._genome_names_to_hg($_[0]).'/cytoBandIdeo.txt';
+  my $cbF   =   './PGX/rsrc/genomes/'.genome_names_to_hg($_[0]).'/cytoBandIdeo.txt';
   my @cb    =   ();
 
-  open	FILE, "$cbF" or die "No file $cbF $!";
+  open  FILE, "$cbF" or die "No file $cbF $!";
   my $i     =   0;
   foreach (grep{/^(chro?)?[\dXYZ]\d?\t/i} <FILE>) {
     $i++;
     chomp;
-  	my (
-  		$chro,
-  		$start,
-  		$end,
-  		$band,
-  		$staining,
-  	)		    =		split (/\t/, $_, 6);
+    my (
+      $chro,
+      $start,
+      $end,
+      $band,
+      $staining,
+    )       =   split (/\t/, $_, 6);
 
-  	$chro		=~ s/chr//;
-  	push(
-  	  @cb,
-  	  {
-  	    no      =>  $i,
-        reference_name  =>	$chro,
-        start	  =>	1 * $start,
-        end	    =>	1 * $end,
-        stain	  =>	$staining,
-        label	  =>	$chro.$band,
+    $chro   =~ s/chr//;
+    push(
+      @cb,
+      {
+        no      =>  $i,
+        reference_name  =>  $chro,
+        start   =>  1 * $start,
+        end     =>  1 * $end,
+        stain   =>  $staining,
+        label   =>  $chro.$band,
       }
     );
   }
@@ -81,7 +81,7 @@ Returns:
 ########    utility subs    ####    ####    ####    ####    ####    ####    ####
 ################################################################################
 
-sub _genome_names_to_grch {
+sub genome_names_to_grch {
   my %genome_names   =   (
     hg18    =>  'grch36',
     hg19    =>  'grch37',
@@ -95,7 +95,7 @@ sub _genome_names_to_grch {
 
 ################################################################################
 
-sub _genome_names_to_hg {
+sub genome_names_to_hg {
   my %genome_names   =   (
     grch36  =>  'hg18',
     grch37  =>  'hg19',

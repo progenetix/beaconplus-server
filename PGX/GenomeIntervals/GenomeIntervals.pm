@@ -50,12 +50,11 @@ Returns:
 
 ########    ####    ####    ####    ####    ####    ####    ####    ####    ####
 
-  my $intSize;
-  ($plotPars->{CYTOBANDS}, $intSize)     =   @_;
+  my ($cytobands, $intSize)     =   @_;
 
   if ($intSize !~ /^\d{3,9}$/) { $intSize = 1000000 }
 
-  my $refLims   =   get_reference_base_limits($plotPars->{CYTOBANDS});
+  my $refLims   =   get_reference_base_limits($cytobands);
   my $gi        =   [];
 
   # references are sorted with numerical ones first, then others (e.g. 1 -> 22, X, Y)
@@ -145,7 +144,7 @@ sub get_genome_basecount {
 
   my $genBases;
   my ($allRefs, $chr2plot)   =   @_;
-#   my %refNames  =   map { $_->{reference_name} => 1 } @$allRefs;
+
   my %refNames  =   map { $_ => 1 } @$chr2plot;
 
   foreach my $ref (keys %refNames) {

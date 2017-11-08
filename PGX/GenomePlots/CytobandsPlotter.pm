@@ -4,7 +4,74 @@ use Data::Dumper;
 
 require Exporter;
 @ISA        =   qw(Exporter);
-@EXPORT     =   qw(get_cytobands_svg);
+@EXPORT     =   qw(get_cytobands_svg get_title_svg get_bottom_labels_svg);
+
+################################################################################
+
+################################################################################
+
+sub get_title_svg {
+
+=pod
+
+Expects:
+
+Returns:
+
+=cut
+
+########    ####    ####    ####    ####    ####    ####    ####    ####    ####
+
+  my $plot      =   shift;
+
+  if ($plot->{parameters}->{title} !~ /\w+?/) { return $plot }
+
+  my $titleSize =   sprintf "%.0f", $plot->{parameters}->{size_text_px} * 1.3;
+  $plot->{Y}    +=   $titleSize;
+  $plot->{svg}  .=  '
+<text x="'.($plot->{areawidth} / 2 + $plot->{parameters}->{size_plotmargin_px}).'" y="'.$plot->{Y}.'" style="text-anchor: middle; font-size: '.$titleSize.'px">'.$plot->{parameters}->{title}.'</text>';
+
+  $plot->{Y}    +=  $plot->{parameters}->{size_chromosome_padding_px};
+  return $plot;
+
+
+}
+
+################################################################################
+
+sub get_bottom_labels_svg {
+
+  use Time::Piece;
+
+=pod
+
+Expects:
+
+Returns:
+
+=cut
+
+########    ####    ####    ####    ####    ####    ####    ####    ####    ####
+
+  my $plot      =   shift;
+
+  $plot->{parameters}->{text_bottom_right} ||= '&#x24B8; '.(localtime->strftime('%Y')).' progenetix.org';
+  if (
+    $plot->{parameters}->{text_bottom_left} !~ /\w+?/
+    &&
+    $plot->{parameters}->{text_bottom_right} !~ /\w+?/
+  ) { return $plot }
+
+  $plot->{Y}    +=   $plot->{parameters}->{size_text_px};
+  $plot->{svg}  .=  '
+<text x="'.$plot->{parameters}->{size_plotmargin_px}.'" y="'.$plot->{Y}.'" style="text-anchor: start; font-size: '.$plot->{parameters}->{size_text_px}.'px; fill: '.$plot->{parameters}->{color_label_bottom_hex}.'">'.$plot->{parameters}->{text_bottom_left}.'</text>
+<text x="'.($plot->{parameters}->{size_plotmargin_px} + $plot->{areawidth}).'" y="'.$plot->{Y}.'" style="text-anchor: end; font-size: '.$plot->{parameters}->{size_text_px}.'px; fill: '.$plot->{parameters}->{color_label_bottom_hex}.'">'.$plot->{parameters}->{text_bottom_right}.'</text>';
+
+  $plot->{Y}    +=  $plot->{parameters}->{size_chromosome_padding_px};
+  return $plot;
+
+
+}
 
 ################################################################################
 
@@ -29,55 +96,75 @@ Returns:
   my $areaX_0   =   $plot->{parameters}->{size_plotmargin_px};
 
   $plot->{svg}  .=  '
-  <defs>';
+<defs>';
   $plot->{svg}  .=  _cytoband_svg_gradients($plot->{plotid});
   $plot->{svg}  .=  '
-  <style type="text/css">
-  <![CDATA[
-  .chrlab { text-anchor: middle; font-size: '.$plot->{parameters}->{size_text_px}.'px }
-  ]]>
-  </style>';
+<style type="text/css">
+<![CDATA[
+.chrlab { text-anchor: middle; font-size: '.$plot->{parameters}->{size_text_px}.'px }
+]]>
+</style>';
   $plot->{svg}  .=  '
-  </defs>';
+</defs>';
 
   my $chrolabY  =   $plot->{Y} + $plot->{parameters}->{size_text_px} + $plot->{parameters}->{size_chromosome_padding_px};
   my $chroBandY =   $chrolabY + $plot->{parameters}->{size_chromosome_padding_px};
 
   foreach my $refName (@{ $plot->{parameters}->{chr2plot} }) {
 
-    my $areaW   =  sprintf "%.1f", $plot->{referencebounds}->{$refName}->[1] * $plot->{basepixfrac};
+    my $areaW  	=  sprintf "%.1f", ($plot->{referencebounds}->{$refName}->[1] - $plot->{referencebounds}->{$refName}->[0]) * $plot->{basepixfrac};
     my $chroX   =  sprintf "%.1f", $areaX_0 + $areaW / 2;
 
-    $plot->{svg}        .=  '
-<text x="'.$chroX.'" y="'.$chrolabY.'" class="chrlab">'.$refName.'</text>';
+		my $areabands		=		[ grep{ $_->{reference_name} eq $refName } @{ $plot->{cytobands} } ];
 
-    my $plotInd =  [ grep{
-          $refName eq	$plot->{cytobands}->[$_]->{reference_name} } 0..$#{$plot->{cytobands}} ];
-    foreach my $i (@$plotInd) {
-      my $cbX	  =		sprintf "%.1f", $areaX_0 + $plot->{basepixfrac} * $plot->{cytobands}->[$i]->{start};
-      my $cbW	  =		sprintf "%.1f", $plot->{basepixfrac} * ($plot->{cytobands}->[$i]->{end} - $plot->{cytobands}->[$i]->{start});
+    my $chrolabel       =   $refName;
+
+    # adding the base boundaries if incomplete chromosome (from first and last
+    # cytoband )
+    if (
+      $plot->{referencebounds}->{$refName}->[0] > $areabands->[0]->{start}
+      ||
+      $plot->{referencebounds}->{$refName}->[1] < $areabands->[-1]->{end}
+    ) {
+      $chrolabel        .=  ' ('.$plot->{referencebounds}->{$refName}->[0].'-'.$plot->{referencebounds}->{$refName}->[1].')';
+    }
+    $plot->{svg}        .=  '
+<text x="'.$chroX.'" y="'.$chrolabY.'" class="chrlab">'.$chrolabel.'</text>';
+
+		$areabands				=		[ grep{ $_->{start} <= $plot->{referencebounds}->{$refName}->[1] } @$areabands];
+		$areabands				=		[ grep{ $_->{end} >= $plot->{referencebounds}->{$refName}->[0] } @$areabands ];
+
+    foreach my $cb (@$areabands) {
+
+      if ($cb->{start} < $plot->{referencebounds}->{$refName}->[0]) {
+        $cb->{start} 	= $plot->{referencebounds}->{$refName}->[0] }
+      if ($cb->{end} > $plot->{referencebounds}->{$refName}->[1]) {
+        $cb->{end} 		= $plot->{referencebounds}->{$refName}->[1] }
+
+      my $cbX	  =		sprintf "%.1f", $areaX_0 + $plot->{basepixfrac} * ($cb->{start} - $plot->{referencebounds}->{$refName}->[0]);
+      my $cbW	  =		sprintf "%.1f", $plot->{basepixfrac} * ($cb->{end} - $cb->{start});
       my $cbY	  =		$chroBandY;
       my $cbH		=   $plot->{parameters}->{size_chromosome_w_px};
 
       # terminal and centromere bands are more narrow
       if (
-        ($plot->{cytobands}->[$i]->{stain} =~ /cen/i)
+        ($cb->{stain} =~ /cen/i)
         ||
-        $plot->{cytobands}->[$i]->{end} >= ($plot->{referencebounds}->{$refName}->[1] - 500)
+        $cb >= ($plot->{referencebounds}->{$refName}->[1] - 500)
         ||
-        $plot->{cytobands}->[$i]->{start} <= ($plot->{referencebounds}->{$refName}->[0] + 500) ) {
+        $cb->{start} <= ($plot->{referencebounds}->{$refName}->[0] + 500) ) {
         $cbY	  +=	(0.1*$plot->{parameters}->{size_chromosome_w_px});
         $cbH	  -=	(0.2*$plot->{parameters}->{size_chromosome_w_px});
       }
 
       # acrocentric "stalk" bands are slim
-      if ($plot->{cytobands}->[$i]->{stain} =~ /stalk/i) {
+      if ($cb =~ /stalk/i) {
         $cbY    +=	(0.3*$plot->{parameters}->{size_chromosome_w_px});
         $cbH	  -=	(0.6*$plot->{parameters}->{size_chromosome_w_px});
       }
 
       $plot->{svg}      .=  '
-<rect x="'.$cbX.'" y="'.$cbY.'" width="'.$cbW.'" height="'.$cbH.'" style="fill: url(#'.$plot->{plotid}.$plot->{cytobands}->[$i]->{stain}.'); " />';
+<rect x="'.$cbX.'" y="'.$cbY.'" width="'.$cbW.'" height="'.$cbH.'" style="fill: url(#'.$plot->{plotid}.$cb->{stain}.'); " />';
 
     }
     $areaX_0	  +=	$areaW + $plot->{parameters}->{size_chromosome_padding_px};

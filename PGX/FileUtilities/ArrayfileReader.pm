@@ -1,6 +1,7 @@
 package PGX::FileUtilities::ArrayfileReader;
 
 use Data::Dumper;
+use Math::Random qw(random_normal);
 
 require Exporter;
 @ISA    =   qw(Exporter);
@@ -44,14 +45,23 @@ Returns:
   my $probeF  	=   shift;
   my $plot      =   shift;
   my $probes  	=   [];
+  my @randomV;
 
 	if (! -f $probeF) { return $probes }
 
   open	FILE, "$probeF" or die "No file $probeF $!";
+	local 	$/;															# no input separator
+	my $fContent  =	  <FILE>;
+	close FILE;
+
+	my @probeData	=		split(/\r\n?|\n/, $fContent);
+	shift @probeData;
+
   my $i     		=   0;
-  foreach (<FILE>) {
+
+  foreach (@probeData) {
+
     $i++;
-    chomp;
   	my (
   		$probe_id,
   		$reference_name,
@@ -82,7 +92,13 @@ Returns:
     );
   }
 
-  close FILE;
+	# random values
+	if ($plot->{parameters}->{simulated_probes} =~ /y/i ) {
+		my @randomV	=		random_normal(scalar @$probes, 0, 0.25);
+		foreach my $n (0..$#{ $probes }) {
+			$probes->[$n]->{value}	=		$randomV[$n];
+		}
+	}
 
   return $probes;
 
@@ -140,46 +156,63 @@ Returns:
 
 	if (! -f $segmentsF) { return $segments }
 
+	my %colOrder  =   (
+    callset_id          =>  0,
+    reference_name      =>  1,
+    start               =>  2,
+    end                 =>  3,
+    value               =>  4,
+    probes              =>  5,
+	);
+
+	if ($plot->{parameters}->{format_inputfiles} =~ /tcga/i) {
+	  $colOrder{value}    =   5;
+	  $colOrder{probes}   =   4;
+	};
+
+
   open	FILE, "$segmentsF" or die "No file $segmentsF $!";
   my $i     		=   0;
   foreach (<FILE>) {
     $i++;
     chomp;
-  	my (
-  		$callset_id,
-  		$reference_name,
-  		$start,
-  		$end,
-  		$value,
-  		$probes,
-  	)		    		=		split (/\s/, $_, 6);
+    my @segment =   split (/\s/, $_, 6);
+    my %segVals =   ();
+    foreach (keys %colOrder) {
+      $segVals{$_}      =   $segment[$colOrder{$_}];
+    };
 
-  	$callset_id	=~ 	s/[^\w\-\,]/_/g;
-  	$reference_name			=~ s/[^\dxXyY]//;
-  	$reference_name			=~ s/^23$/X/;
-  	$reference_name			=~ s/^24$/Y/;
-  	$start			=		sprintf "%.0f", $start;
-  	$end  			=		sprintf "%.0f", $end;
-  	$probes			=~ 	s/[^\d]//g;
-  	$value			=		sprintf "%.4f", $value;
+  	$segVals{callset_id}        =~ 	s/[^\w\-\,]/_/g;
+  	$segVals{reference_name}		=~ s/[^\dxXyY]//;
+  	$segVals{reference_name}		=~ s/^23$/X/;
+  	$segVals{reference_name}		=~ s/^24$/Y/;
+  	$segVals{start}			=		sprintf "%.0f", $segVals{start};
+  	$segVals{end}  			=		sprintf "%.0f", $segVals{end};
+  	$segVals{probes}		=~ 	s/[^\d]//g;
+  	$segVals{value}			=		sprintf "%.4f", $segVals{value};
 
-  	if ($reference_name	!~ /^\w\d?$/) 						{ next }
-  	if ($start					!~ /^\d{1,9}$/) 					{ next }
-  	if ($end						!~ /^\d{1,9}$/) 					{ next }
-  	if ($value					!~ /^\-?\d+?(\.\d+?)?$/) 	{ next }
+  	if ($segVals{reference_name}!~ /^\w\d?$/) 						{ next }
+  	if ($segVals{start}					!~ /^\d{1,9}$/) 					{ next }
+  	if ($segVals{end}						!~ /^\d{1,9}$/) 					{ next }
+  	if ($segVals{value}					!~ /^\-?\d+?(\.\d+?)?$/) 	{ next }
+		if (
+			$segVals{probes} =~ /^\d\d?$/
+			&&
+			$segVals{probes} < $plot->{parameters}->{segment_probecount_min}
+		) 																										{ next }
 
   	push(
   	  @$segments,
   	  {
   	    no      				=>  $i,
-  	    callset_id			=>	$callset_id,
-        reference_name  =>	$reference_name,
-        start	  				=>	1 * $start,
-        end		  				=>	1 * $end,
+  	    callset_id			=>	$segVals{callset_id},
+        reference_name  =>	$segVals{reference_name},
+        start	  				=>	1 * $segVals{start},
+        end		  				=>	1 * $segVals{end},
         info						=>	{
-        	value					=>	1 * $value,
-        	svlen					=>	1 * ($end - $start),
-        	probes				=>	1 * $probes,
+        	value					=>	1 * $segVals{value},
+        	svlen					=>	1 * ($segVals{end} - $segVals{start}),
+        	probes				=>	1 * $segVals{probes},
         },
       }
     );

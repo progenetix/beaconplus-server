@@ -1,7 +1,7 @@
 package PGX::GenomePlots::PlotParameters;
 
 use Data::Dumper;
-use YAML::XS 'LoadFile';
+use YAML::XS qw(LoadFile DumpFile);
 
 require Exporter;
 @ISA        =   qw(Exporter);
@@ -11,9 +11,9 @@ require Exporter;
 
 sub read_plot_defaults {
 
-  my $plotPars  =   LoadFile('./PGX/rsrc/config/plotdefaults.yaml');  
+  my $plotPars  =   LoadFile('./PGX/rsrc/config/plotdefaults.yaml');
   return  $plotPars;
-  
+
 }
 
 ################################################################################
@@ -34,8 +34,29 @@ Returns:
 ########    ####    ####    ####    ####    ####    ####    ####    ####    ####
 
   my ($plotPars, $args) =   @_;
+
+  # local defaults overwrite general values; but command line parameters
+  # take precedence later on
+  my $locDefaults       =   {};
+  my $defaultsDir;
   
-  # the -plottype | -colorschema specific mappings are processed first & removed 
+  
+  if (-f $args->{'-defaultsfile'}) {
+  	$defaultsDir		=	$args->{'-defaultsfile'};
+  	$defaultsDir		=~	s/\/[\w\.\,]+?$//;
+  }
+  
+
+  if (-f $args->{'-defaultsfile'}) {
+    $locDefaults        =   LoadFile($args->{'-defaultsfile'});
+    foreach my $par (keys %$plotPars) {
+      if ($locDefaults->{$par}) {
+        $plotPars->{$par}   =   $locDefaults->{$par};
+      }
+    }
+  }
+
+  # the -plottype | -colorschema specific mappings are processed first & removed
   # thereafter (there are still fallbacks if no parameters given)
   if (grep{ $args->{'-colorschema'} eq $_ } keys %{ $plotPars->{colorschemas} }) {
     my $colorschema     =   $args->{'-colorschema'};
@@ -46,6 +67,7 @@ Returns:
     delete $plotPars->{colorschemas};
     delete $args->{'-colorschema'};
   }
+
   if (grep{ $args->{'-plottype'} eq $_ } keys %{ $plotPars->{plottype_values} }) {
     foreach (keys %{ $plotPars->{plottype_values}->{ $args->{'-plottype'} } }) {
       $plotPars->{$_} =   $plotPars->{plottype_values}->{ $args->{'-plottype'} }->{$_} }
@@ -53,22 +75,35 @@ Returns:
     delete $args->{'-plottype'};
   }
 
-  foreach my $par (keys %$plotPars) {   
-    if ($args->{'-'.$par} =~ /^\-?\#?\w[\.\-\,\w]*?$/) {
-      
+  foreach my $par (keys %$plotPars) {
+    if ($args->{'-'.$par} =~ /^\-?\#?\w[\. \-\,\(\)\w]*?$/) {
+
       # list style parameters are provided comma concatenated
       if (grep{ $par eq $_ } qw(chr2plot label_y_m)) {
         $plotPars->{$par}   =   [ split(',', $args->{'-'.$par}) ] }
       else {
-        $plotPars->{$par}   =   $args->{'-'.$par} }   
+        $plotPars->{$par}   =   $args->{'-'.$par} }
+      if (grep{ $_ eq $par } @{ $plotPars->{local_overrides} }) {
+        $locDefaults->{$par}  =   $plotPars->{$par};     
+      }
     }
   }
-  
+
   # derived
   $plotPars->{pixyfactor}   =   1 * $plotPars->{size_plotarea_h_px} / (2 * $plotPars->{value_plot_y_max});
   
-  return $plotPars;
+  foreach my $override (keys %$locDefaults) {
+    if (! grep{ $_ eq $override } @{ $plotPars->{local_overrides} }) {
+      delete $locDefaults->{$override};
+    }
+  }
   
+  if (-d $defaultsDir) {
+  	DumpFile($args->{'-defaultsfile'}, $locDefaults);
+  }
+  
+  return $plotPars;
+
 }
 
 ################################################################################
