@@ -71,7 +71,7 @@ sub _print_histogram {
   my $cursor	  =		$datacoll->find( $dataQuery )->fields( { 'info' => 1 } );
   my $callsets	=		[ $cursor->all ];
 
-  $args{'-text_bottom_left'}    =   scalar(@$callsets).' samples';
+  $args->{'-text_bottom_left'}  =   scalar(@$callsets).' samples';
 
   my $plot      =   new PGX::GenomePlots::Genomeplot($args);
   plot_add_frequencymaps($callsets, $plot);
