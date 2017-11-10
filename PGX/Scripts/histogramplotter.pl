@@ -58,18 +58,15 @@ my $callsets    =   [];
 
 my $dbconn  =   MongoDB::MongoClient->new()->get_database($args{'-dataset'});
 
-# retrieving all callset ids to be processed
-$distincts  =   $dbconn->run_command([
-                  "distinct"    =>  $csColl,
-                  "key"         =>  'id',
-                  "query"       =>  $csQuery,
-                ]);
-$csIds      =   $distincts->{values};
+########    ####    ####    ####    ####    ####    ####    ####    ####    ####
+
+$cursor     =   $dbconn->get_collection($csColl)->find( $csQuery )->fields( { info => 1 } );
+$callsets   =   [ $cursor->all ];
 
 if ($args{'-randno'} > 0) {
-  $csIds    =   [ (shuffle(@$csIds))[0..($args{'-randno'}-1)] ] }
+  $callsets =   [ (shuffle(@$callsets))[0..($args{'-randno'}-1)] ] }
 
-my $csNo    =   scalar @$csIds;
+my $csNo    =   scalar @$callsets;
 
 my $startT  =   time();
 my $timeLab =   strftime("%T", gmtime());
@@ -87,12 +84,20 @@ Start:      $timeLab
 
 END
 
-my $cscoll  =   $dbconn->get_collection($csColl);
 
-########    ####    ####    ####    ####    ####    ####    ####    ####    ####
+$args{'-text_bottom_left'}      =   $csNo.' samples';
 
-$cursor     =   $dbconn->get_collection($csColl)->find( { "id" => {'$in' => $csIds } } );
-$callsets   =   [ $cursor->all ];
+my $plot    =   new PGX::GenomePlots::Genomeplot(\%args);
+plot_add_frequencymaps($callsets, $plot);
+return_histoplot_svg($plot);
+
+my $svgFile     =   './histoplot.svg';
+
+open  (FILE, ">", $svgFile) || warn 'output file '.$svgFile.' could not be created.';
+binmode(FILE, ":utf8");
+print FILE  $plot->{svg};
+close FILE;
+
 
 my $endT    =   time();
 $timeLab    =   strftime("%T", gmtime());
@@ -105,19 +110,9 @@ print <<END;
 End:        $timeLab
 Duration:   $timeD sec.
 Throughput: $perCs sec. per callset
+SVG:        $svgFile
 
 END
-
-my $plot    =   new PGX::GenomePlots::Genomeplot(\%args);
-plot_add_frequencymaps($callsets, $plot);
-return_histoplot_svg($plot);
-
-my $svgFile     =   './histoplot.svg';
-
-open  (FILE, ">", $svgFile) || warn 'output file '.$svgFile.' could not be created.';
-binmode(FILE, ":utf8");
-print FILE  $plot->{svg};
-close FILE;
 
 ################################################################################
 # subs #########################################################################
