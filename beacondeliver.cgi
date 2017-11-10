@@ -74,8 +74,8 @@ sub _print_histogram {
   $args->{'-text_bottom_left'}  =   scalar(@$callsets).' samples';
 
   my $plot      =   new PGX::GenomePlots::Genomeplot($args);
-  plot_add_frequencymaps($callsets, $plot);
-  return_histoplot_svg($plot);
+  $plot->plot_add_frequencymaps($callsets);
+  $plot->return_histoplot_svg();
 
 #  print 'Content-type: image/svg+xml'."\n\n";
   print $plot->{svg};
