@@ -56,6 +56,7 @@ sub _print_histogram {
   $args->{'-genome'}    =   'grch36';
   $args->{'-binning'}   =   1000000;
   $args->{'-plotid'}    =   'histoplot';
+  $args->{'-do_plottype'}       =   'histogram';
   $args->{'-chr2plot'}  =   '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,X';
 
   $MongoDB::Cursor::timeout = 120000;
@@ -68,11 +69,11 @@ sub _print_histogram {
   my $datacoll  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} )->get_collection($tmpdata->{query_coll});
   my $dataQuery =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
   my $cursor	  =		$datacoll->find( $dataQuery )->fields( { 'info' => 1 } );
-  my $data	    =		[ $cursor->all ];
+  my $callsets	=		[ $cursor->all ];
 
   my $plot      =   new PGX::GenomePlots::Genomeplot($args);
-  my $fMaps     =   interval_cnv_frequencies([map{$_->{info}->{statusmaps}} @$data ], $plot->{genomeintervals});
-  $plot         =   return_histoplot_svg($plot, $fMaps);
+  plot_add_frequencymaps($callsets, $plot);
+  return_histoplot_svg($plot);
 
 #  print 'Content-type: image/svg+xml'."\n\n";
   print $plot->{svg};

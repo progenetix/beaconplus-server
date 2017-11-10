@@ -41,7 +41,10 @@ Returns:
 
 ########    ####    ####    ####    ####    ####    ####    ####    ####    ####
 
-  my $cbF   =   './PGX/rsrc/genomes/'.genome_names_to_hg($_[0]).'/cytoBandIdeo.txt';
+  use File::Basename;
+
+  my $path_of_this_module = File::Basename::dirname( eval { ( caller() )[1] } );
+  my $cbF   =   $path_of_this_module.'/../rsrc/genomes/'.genome_names_to_hg($_[0]).'/cytoBandIdeo.txt';
   my @cb    =   ();
 
   open  FILE, "$cbF" or die "No file $cbF $!";

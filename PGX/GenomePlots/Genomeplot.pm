@@ -3,6 +3,7 @@ package PGX::GenomePlots::Genomeplot;
 use Data::Dumper;
 use PGX::GenomeIntervals::CytobandReader;
 use PGX::GenomeIntervals::GenomeIntervals;
+use PGX::GenomeIntervals::IntervalStatistics;
 use PGX::GenomePlots::PlotParameters;
 use PGX::FileUtilities::ArrayfileReader;
 
@@ -10,12 +11,12 @@ require Exporter;
 @ISA    =   qw(Exporter);
 @EXPORT =   qw(
   new
+  plot_add_frequencymaps
   plot_add_probedata
   plot_add_segmentdata
   plot_add_probedata_fracb
   plot_add_segmentdata_fracb
   plot_adjust_random_probevalues
-  plot_get_plotregions
 );
 
 ################################################################################
@@ -31,6 +32,7 @@ sub new {
     svg         =>  q{},
     Y           =>  0,
   };
+
   bless $self, $class;
   $self->{genomeintervals}      =   make_genome_intervals(
                                       $self->{cytobands},
@@ -41,8 +43,56 @@ sub new {
                                       $self->{cytobands},
                                       $self->{parameters}->{chr2plot},
                                     );
+  _plot_get_plotregions($self);
 
   return $self;
+
+}
+
+########    ####    ####    ####    ####    ####    ####    ####    ####    ####
+########    ####    ####    ####    ####    ####    ####    ####    ####    ####
+########    ####    ####    ####    ####    ####    ####    ####    ####    ####
+
+sub _plot_get_plotregions {
+
+  my $plot      =   shift;
+
+  my $regions   =   $plot->{parameters}->{plotregions};
+  my %chros     =   map{ $_->{reference_name} => 1 } @$regions;
+  my @refNames  =   ((sort {$a <=> $b } grep{ /^\d\d?$/ } keys %chros), (sort grep{ ! /\d/ } keys %chros));
+
+  if (! grep{ /^\d\w?$/ } @refNames) { return $plot }
+
+  my $refLims   =   {};
+  my $baseCount =   0;
+  foreach my $ref (@refNames) {
+    my @allBounds       =   map{ $_->{start}, $_->{end} } (grep{ $_->{reference_name} eq $ref } @$regions);
+    @allBounds          =   sort {$a <=> $b } @allBounds;
+    $refLims->{$ref}    =   [ $allBounds[0], $allBounds[-1] ];
+    $baseCount          +=  ($allBounds[-1] - $allBounds[0]);
+  }
+
+  $plot->{parameters}->{do_chromosomes_proportional} = /n/;
+  $plot->{parameters}->{chr2plot}   =   [@refNames];
+  $plot->{referencebounds}      =   $refLims;
+  $plot->{genomesize}           =   $baseCount;
+
+  return $plot;
+
+}
+
+########    ####    ####    ####    ####    ####    ####    ####    ####    ####
+########    ####    ####    ####    ####    ####    ####    ####    ####    ####
+########    ####    ####    ####    ####    ####    ####    ####    ####    ####
+
+sub plot_add_frequencymaps {
+
+  my $callsets  =   shift;
+  my $plot      =   shift;
+
+  $plot->{frequencymaps}        =   interval_cnv_frequencies([map{$_->{info}->{statusmaps}} @$callsets ], $plot->{genomeintervals});
+
+  return $plot;
 
 }
 
@@ -90,6 +140,7 @@ sub plot_add_segmentdata_fracb {
   my $segfile   =   shift;
   my $plot      =   shift;
   $plot->{segmentdata_fracb}  =   read_segmentfile($segfile, $plot);
+
   return $plot;
 
 }
@@ -127,38 +178,6 @@ sub plot_adjust_random_probevalues {
 	  $progBar->update(scalar @{$plot->{segmentdata}});
 	}
 
-
-  return $plot;
-
-}
-
-########    ####    ####    ####    ####    ####    ####    ####    ####    ####
-########    ####    ####    ####    ####    ####    ####    ####    ####    ####
-########    ####    ####    ####    ####    ####    ####    ####    ####    ####
-
-sub plot_get_plotregions {
-
-  my $regions   =   shift;
-  my $plot      =   shift;
-
-  my %chros     =   map{ $_->{reference_name} => 1 } @$regions;
-  my @refNames  =   ((sort {$a <=> $b } grep{ /^\d\d?$/ } keys %chros), (sort grep{ ! /\d/ } keys %chros));
-
-  if (! grep{ /^\d\w?$/ } @refNames) { return $plot }
-
-  my $refLims   =   {};
-  my $baseCount =   0;
-  foreach my $ref (@refNames) {
-    my @allBounds       =   map{ $_->{start}, $_->{end} } (grep{ $_->{reference_name} eq $ref } @$regions);
-    @allBounds          =   sort {$a <=> $b } @allBounds;
-    $refLims->{$ref}    =   [ $allBounds[0], $allBounds[-1] ];
-    $baseCount          +=  ($allBounds[-1] - $allBounds[0]);
-  }
-
-  $plot->{parameters}->{do_chromosomes_proportional} = /n/;
-  $plot->{parameters}->{chr2plot}   =   [@refNames];
-  $plot->{referencebounds}      =   $refLims;
-  $plot->{genomesize}           =   $baseCount;
 
   return $plot;
 

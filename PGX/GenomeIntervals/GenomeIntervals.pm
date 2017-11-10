@@ -4,7 +4,11 @@ use Data::Dumper;
 
 require Exporter;
 @ISA        =   qw(Exporter);
-@EXPORT     =   qw(make_genome_intervals get_reference_base_limits get_genome_basecount);
+@EXPORT     =   qw(
+  make_genome_intervals
+  get_reference_base_limits
+  get_genome_basecount
+);
 
 ################################################################################
 
@@ -17,11 +21,11 @@ Expects:
     [
       {
         no    =>  __integer__,            # not used
-        reference_name  =>	__string__,
-        start	=>	__integer__,
-        end	  =>	__integer__,
-        stain	=>	__string__,            # not used
-        label	=>	__string__,            # not used
+        reference_name  =>  __string__,
+        start =>  __integer__,
+        end   =>  __integer__,
+        stain =>  __string__,            # not used
+        label =>  __string__,            # not used
       },
       {
       ...
@@ -36,10 +40,10 @@ Returns:
     [
       {
         no    =>  __integer__,          # 1 -> n
-        reference_name  =>	__string__,
-        start	=>	__integer__,
-        end	  =>	__integer__,
-        label	=>	__string__,
+        reference_name  =>  __string__,
+        start =>  __integer__,
+        end   =>  __integer__,
+        label =>  __string__,
       },
       {
       ...
