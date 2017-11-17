@@ -113,6 +113,10 @@ Content-type: text/html
               returning data of the associated callsets which matched the Beacon
               query (this is for feature demonstration only...)
             </li>
+            <li>
+              returning the metadata (diagnoses etc.) of the biosamples
+              from which the matching callsets were derived
+            </li>
           </ul>
         </p>
         <p>
@@ -159,7 +163,7 @@ Content-type: text/html
         <div class="form-group">
             <div class="col-sm-offset-2">
                 <div class="col-sm-2">
-                  <button class="btn btn-info">Process Data</button>
+                  <button class="btn btn-info" target="_blank">Process Data</button>
                 </div>
             </div>
         </div>
