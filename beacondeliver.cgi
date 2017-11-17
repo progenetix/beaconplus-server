@@ -92,7 +92,7 @@ sub _export_callsets {
   my $tmpdata   =   $tmpcoll->find_one( { _id	=>  $access_id } );
   my $datacoll  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} )->get_collection($tmpdata->{query_coll});
   my $dataQuery =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
-  my $cursor	  =		$datacoll->find( $dataQuery )->fields( { info => 0, _id => 0, updated => 0, attributes => 0, created => 0 } );
+  my $cursor	  =		$datacoll->find( $dataQuery )->fields( { info => 0, _id => 0, updated => 0, created => 0 } );
 
   print	JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
 
@@ -118,7 +118,7 @@ sub _export_biosamples {
                     ]);
   my $biosids   =   $datacall->{values};
   my $datacoll  =   $dataconn->get_collection('biosamples');
-  my $cursor	  =		$datacoll->find( { id => { '$in' => $biosids } } )->fields( { _id => 0, updated => 0 } );
+  my $cursor	  =		$datacoll->find( $dataQuery )->fields( { attributes => 0, _id => 0, updated => 0, created => 0 } );
 
   print	JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
 
