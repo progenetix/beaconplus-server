@@ -33,16 +33,12 @@ our $tmpcoll    =   'querybuffer';
 
 # parameters
 our $access_id  =   param('accessid');
-our $submit     =   param('submit');
+our $todo       =   param('do');
 our $cgi        =   new CGI;
-
-print $cgi->header;
-print $cgi->start_html(-title => 'Beacon+ Handover Prototype: Delivery');
 
 _print_histogram();
 _export_callsets();
-
-print $cgi->end_html;
+_export_biosamples();
 
 ################################################################################
 # subs #########################################################################
@@ -50,7 +46,7 @@ print $cgi->end_html;
 
 sub _print_histogram {
 
-  if ($submit !~ /histo/i) { return }
+  if ($todo !~ /histo/i) { return }
 
   my $args        =   {};
   $args->{'-genome'}    =   'grch36';
@@ -77,7 +73,7 @@ sub _print_histogram {
   $plot->plot_add_frequencymaps($callsets);
   $plot->return_histoplot_svg();
 
-#  print 'Content-type: image/svg+xml'."\n\n";
+  print 'Content-type: image/svg+xml'."\n\n";
   print $plot->{svg};
 
 }
@@ -86,7 +82,9 @@ sub _print_histogram {
 
 sub _export_callsets {
 
-  if ($submit !~ /export/i) { return }
+  if ($todo !~ /callsets/i) { return }
+
+  print 'Content-type: application/json'."\n\n";
 
   $MongoDB::Cursor::timeout = 120000;
 
@@ -95,6 +93,32 @@ sub _export_callsets {
   my $datacoll  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} )->get_collection($tmpdata->{query_coll});
   my $dataQuery =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
   my $cursor	  =		$datacoll->find( $dataQuery )->fields( { info => 0, _id => 0, updated => 0 } );
+
+  print	JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
+
+}
+
+################################################################################
+
+sub _export_biosamples {
+
+  if ($todo !~ /biosamples/i) { return }
+
+  print 'Content-type: application/json'."\n\n";
+
+  $MongoDB::Cursor::timeout = 120000;
+
+  my $tmpcoll   =   MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection($tmpcoll);
+  my $tmpdata   =   $tmpcoll->find_one( { _id	=>  $access_id } );
+  my $dataconn  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} );
+  my $datacall  =   $dataconn->run_command([
+                      "distinct"=>  $tmpdata->{query_coll},
+                      "key"     =>  'biosample_id',
+                      "query"   =>  { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } },
+                    ]);
+  my $biosids   =   $datacall->{values};
+  my $datacoll  =   $dataconn->get_collection('biosamples');
+  my $cursor	  =		$datacoll->find( { id => { '$in' => $biosids } } )->fields( { _id => 0, updated => 0 } );
 
   print	JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
 
