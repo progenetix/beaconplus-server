@@ -93,7 +93,13 @@ sub plot_add_frequencymaps {
   my $plot      =   shift;
   my $callsets  =   shift;
 
-  $plot->{frequencymaps}        =   interval_cnv_frequencies([map{$_->{info}->{statusmaps}} @$callsets ], $plot->{genomeintervals});
+  if ($callsets->[0]->{statusmaps}) {
+    $plot->{frequencymaps}  =   interval_cnv_frequencies([map{$_->{statusmaps}} @$callsets ], $plot->{genomeintervals});
+ 
+  }
+  else {
+    $plot->{frequencymaps}  =   interval_cnv_frequencies([map{$_->{info}->{statusmaps}} @$callsets ], $plot->{genomeintervals});
+  }
 
   return $plot;
 

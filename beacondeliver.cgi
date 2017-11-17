@@ -33,6 +33,7 @@ our $tmpcoll    =   'querybuffer';
 
 # parameters
 our $access_id  =   param('accessid');
+our $dataStyle  =   param('datastyle');
 our $todo       =   param('do');
 our $cgi        =   new CGI;
 
@@ -47,6 +48,8 @@ _export_biosamples();
 sub _print_histogram {
 
   if ($todo !~ /histo/i) { return }
+
+  print 'Content-type: image/svg+xml'."\n\n";
 
   my $args        =   {};
   $args->{'-genome'}    =   'grch36';
@@ -64,7 +67,7 @@ sub _print_histogram {
 
   my $datacoll  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} )->get_collection($tmpdata->{query_coll});
   my $dataQuery =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
-  my $cursor	  =		$datacoll->find( $dataQuery )->fields( { 'info' => 1 } );
+  my $cursor	  =		$datacoll->find( $dataQuery )->fields( { info => 1, statusmaps => 1 } );
   my $callsets	=		[ $cursor->all ];
 
   $args->{'-text_bottom_left'}  =   scalar(@$callsets).' samples';
@@ -73,7 +76,6 @@ sub _print_histogram {
   $plot->plot_add_frequencymaps($callsets);
   $plot->return_histoplot_svg();
 
-  print 'Content-type: image/svg+xml'."\n\n";
   print $plot->{svg};
 
 }
