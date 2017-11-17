@@ -172,6 +172,22 @@ Content-type: text/html
 
     </div>
   </div>
+
+  <div class="panel panel-default" style="border: none;">
+    <div class="panel-body">
+      <div style="display: flex; justify-content: space-between;">
+        <a href="http://arraymap.org" target="_blank"><img src="./img/arraymap_black_180.png" style="height: 25px; margin: 5px;" /></a>
+        <a href="http://progenetix.org" target="_blank"><img src="./img/progenetix_black_180.png" style="height: 25px; margin: 0px 5px 5px 5px;" /></a>
+        <div style="min-width: 300px;">
+          This Beacon implementation is developed by the <a href="http://wiki.progenetix.org/Wiki/BaudisgroupIMLS/" target="_blank">Computational Oncogenomics Group</a> at the <a href="http://www.imls.uzh.ch/baudis/" target="_blank">University of Zurich</a>, with support from the <a href="https://www.sib.swiss/sibt/" target="_blank">SIB Technology group</a> and <a href="https://www.elixir-europe.org" target="_blank">ELIXIR</a>.
+        </div>
+        <a href="http://www.uzh.ch" target="_blank"><img src="./img/uzh_logo_pos_160x50.png" style="height: 25px; margin: 5px;" /></a>
+        <a href="http://elixir-europe.org" target="_blank"><img src="./img/elixir_logo_grey_65x50.png" style="height: 25px; margin: 5px;" /></a>
+        <a href="http://sib.swiss" target="_blank"><img src="./img/sib_logo_65x50.png" style="height: 25px; margin: 5px;" /></a>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- StatCounter -->
