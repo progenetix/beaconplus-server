@@ -118,7 +118,7 @@ sub _export_biosamples {
                     ]);
   my $biosids   =   $datacall->{values};
   my $datacoll  =   $dataconn->get_collection('biosamples');
-  my $cursor	  =		$datacoll->find( $dataQuery )->fields( { attributes => 0, _id => 0, updated => 0, created => 0 } );
+  my $cursor	  =		$datacoll->find( { id => { '$in' => $biosids } } )->fields( { attributes => 0, _id => 0, updated => 0, created => 0 } );
 
   print	JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
 
