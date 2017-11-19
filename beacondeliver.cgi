@@ -14,6 +14,9 @@ use Data::Dumper;
 use UUID::Tiny;
 
 # local packages
+BEGIN {
+ push @INC, '/Library/WebServer/cgi-bin';
+}
 use PGX::GenomeIntervals::IntervalStatistics;
 use PGX::GenomePlots::HistoPlotter;
 use PGX::GenomePlots::Genomeplot;
