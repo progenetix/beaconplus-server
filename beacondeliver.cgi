@@ -38,6 +38,8 @@ our $tmpcoll    =   'querybuffer';
 our $access_id  =   param('accessid');
 our $dataStyle  =   param('datastyle');
 our $todo       =   param('do');
+our $genome     =   param('assembly_id');
+our $chr2plot   =   param('chr2plot');
 our $cgi        =   new CGI;
 
 _print_histogram();
@@ -54,12 +56,12 @@ sub _print_histogram {
 
   print 'Content-type: image/svg+xml'."\n\n";
 
-  my $args        =   {};
-  $args->{'-genome'}    =   'grch36';
+  my $args      =   {};
+  $args->{'-genome'}    ||= $genome     ||= 'grch36';
+  $args->{'-chr2plot'}  ||= $chr2plot   ||= join(',', 1..22,'X');
   $args->{'-binning'}   =   1000000;
   $args->{'-plotid'}    =   'histoplot';
   $args->{'-do_plottype'}       =   'histogram';
-  $args->{'-chr2plot'}  =   '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,X';
 
   $MongoDB::Cursor::timeout = 120000;
 
