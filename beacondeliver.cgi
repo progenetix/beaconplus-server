@@ -54,33 +54,37 @@ sub _print_histogram {
 
   if ($todo !~ /histo/i) { return }
 
-  print 'Content-type: image/svg+xml'."\n\n";
 
   my $args      =   {};
   $args->{'-genome'}    ||= $genome     ||= 'grch36';
   $args->{'-chr2plot'}  ||= $chr2plot   ||= join(',', 1..22,'X');
   $args->{'-binning'}   =   1000000;
   $args->{'-plotid'}    =   'histoplot';
-  $args->{'-do_plottype'}       =   'histogram';
+  $args->{'-plottype'}       =   'histogram';
 
   $MongoDB::Cursor::timeout = 120000;
 
   my $tmpcoll   =   MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection($tmpcoll);
-  my $tmpdata   =   $tmpcoll->find_one( { _id	=>  $access_id } );
+  my $tmpdata   =   $tmpcoll->find_one( { _id =>  $access_id } );
   if ($tmpdata->{query_coll} =~ /_(((?:grch)|(?:hg))\d\d)$/i) {
     $args->{'-genome'}  =   $1 }
 
   my $datacoll  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} )->get_collection($tmpdata->{query_coll});
   my $dataQuery =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
-  my $cursor	  =		$datacoll->find( $dataQuery )->fields( { info => 1, statusmaps => 1 } );
-  my $callsets	=		[ $cursor->all ];
+  my $cursor    =   $datacoll->find( $dataQuery )->fields( { info => 1, statusmaps => 1 } );
+  my $callsets  =   [ $cursor->all ];
 
   $args->{'-text_bottom_left'}  =   scalar(@$callsets).' samples';
+
+  if ($dataStyle =~ /old/i) {
+    $callsets   =   [ map{  { info => { statusmaps => $_->{statusmaps}}} } @$callsets ];
+  }
 
   my $plot      =   new PGX::GenomePlots::Genomeplot($args);
   $plot->plot_add_frequencymaps($callsets);
   $plot->return_histoplot_svg();
 
+  print 'Content-type: image/svg+xml'."\n\n";
   print $plot->{svg};
 
 }
@@ -96,12 +100,12 @@ sub _export_callsets {
   $MongoDB::Cursor::timeout = 120000;
 
   my $tmpcoll   =   MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection($tmpcoll);
-  my $tmpdata   =   $tmpcoll->find_one( { _id	=>  $access_id } );
+  my $tmpdata   =   $tmpcoll->find_one( { _id =>  $access_id } );
   my $datacoll  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} )->get_collection($tmpdata->{query_coll});
   my $dataQuery =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
-  my $cursor	  =		$datacoll->find( $dataQuery )->fields( { info => 0, _id => 0, updated => 0, created => 0 } );
+  my $cursor    =   $datacoll->find( $dataQuery )->fields( { info => 0, _id => 0, updated => 0, created => 0 } );
 
-  print	JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
+  print JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
 
 }
 
@@ -116,7 +120,7 @@ sub _export_biosamples {
   $MongoDB::Cursor::timeout = 120000;
 
   my $tmpcoll   =   MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection($tmpcoll);
-  my $tmpdata   =   $tmpcoll->find_one( { _id	=>  $access_id } );
+  my $tmpdata   =   $tmpcoll->find_one( { _id =>  $access_id } );
   my $dataconn  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} );
   my $datacall  =   $dataconn->run_command([
                       "distinct"=>  $tmpdata->{query_coll},
@@ -125,9 +129,9 @@ sub _export_biosamples {
                     ]);
   my $biosids   =   $datacall->{values};
   my $datacoll  =   $dataconn->get_collection('biosamples');
-  my $cursor	  =		$datacoll->find( { id => { '$in' => $biosids } } )->fields( { attributes => 0, _id => 0, updated => 0, created => 0 } );
+  my $cursor    =   $datacoll->find( { id => { '$in' => $biosids } } )->fields( { attributes => 0, _id => 0, updated => 0, created => 0 } );
 
-  print	JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
+  print JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
 
 }
 
