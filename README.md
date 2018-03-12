@@ -26,12 +26,8 @@ The script uses some naming conventions for databases and collections:
 
 SNV query on dataset "dipg" with phenotype response:
 
-* http://progenetix.org/beacon/query/?eferenceName=17&referenceBases=G&variants.alternate_bases=A&variants.start=7577121&dataset_ids=dipg&phenotypes=1
-
-CNV query on dataset "dipg", with phenotype response:
-
-* http://progenetix.org/beacon/query/?eferenceName=9&alternateBases=DEL&startMin=19000000&startMax=21984490&endMin=21984490&endMax=25000000&dataset_ids=dipg&phenotypes=1
+* http://beacon.arraymap.org/beacon/beaconplus-server/beaconresponse.cgi?datasetId=dipg&referenceName=17&assemblyId=GRCh38&start=7733516&referenceBases=G&alternateBases=A&biosamples.bio_characteristics.ontology_terms.term_id=pgx:icdot:c71.7&phenotypes=1
 
 CNV query (defaults do dataset "arraymap") with bio-metadata component and phenotype response:
 
-* http://progenetix.org/beacon/query/?eferenceName=chr9&alternateBases=DEL&startMin=20000000&startMax=21984490&endMin=21984490&endMax=25000000&biosamples.bio_characteristics.ontology_terms.term_id=NCIT:C3058&biosamples.bio_characteristics.ontology_terms.term_id=NCIT:C3059&phenotypes=1
+* http://beacon.progenetix.org/beacon/beaconplus-server/beaconresponse.cgi?datasetId=arraymap&referenceName=9&assemblyId=GRCh38&startMin=19,500,000&startMax=21,975,098&endMin=21,967,753&endMax=24,500,000&alternateBases=DEL&biosamples.bio_characteristics.ontology_terms.term_id=ncit:c3224&phenotypes=1
