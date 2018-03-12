@@ -31,6 +31,15 @@ if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
 # print $ENV{QUERY_STRING};
 # exit;
 
+my $beaconId    =   'progenetix-beacon';
+my $url         =   'http://progenetix.org/beacon/info/';
+my $altUrl      =   'http://arraymap.org/beacon/info/';
+my $logoUrl     =   'http://progenetix.org/p/progenetix.png';
+my $actions     =   [];
+my $ap
+
+
+
 my $args        =   {};
 
 $args->{datasetPar}     =   _getDatasetParams();
@@ -55,14 +64,14 @@ my $datasetResponses    =   _getDatasetResponses($args);
 my $bcExists    =   \0;
 if (grep{ $_->{exists} } @$datasetResponses) { $bcExists = \1 }
 my $response    =   {
-  beacon_id     =>  "org.progenetix:progenetix-beacon",
+  beaconId      =>  "org.progenetix:progenetix-beacon",
   exists        =>  $bcExists,
-  allele_request    =>  _makePrettyQuery(),
-  api_version   =>  "0.4",
+  alleleRequest =>  _makePrettyQuery(),
+  apiVersion    =>  "0.4",
   url           =>  'http://progenetix.org/beacon/info/',
-  dataset_allele_responses      =>   $datasetResponses,
+  datasetAlleleResponses    =>   $datasetResponses,
   info          =>  {
-    query_string    =>  $ENV{QUERY_STRING},
+    queryString =>  $ENV{QUERY_STRING},
     version     =>  'Beacon+ implementation based on the development branch of the beacon-team project: https://github.com/ga4gh/beacon-team/blob/develop-proto/src/main/proto/ga4gh/beacon.proto',
   },
 
@@ -511,8 +520,8 @@ message BeaconDatasetAlleleResponse {
     $fields->{info} =   1 }
 
   # retrieving all matching variants
-  $cursor	      =		$dbconn->get_collection( $args->{datasetPar}->{varcoll} )->find( $args->{varQ} )->fields( {   } );
-  $vars	        =		[ $cursor->all ];
+  $cursor        =    $dbconn->get_collection( $args->{datasetPar}->{varcoll} )->find( $args->{varQ} )->fields( {   } );
+  $vars          =    [ $cursor->all ];
 
   my %csVarMatches  =   map{ $_->{callset_id} => 1 } @$vars;
   my %bsVarMatches  =   map{ $_->{biosample_id} => 1 } @$vars;
@@ -636,21 +645,21 @@ message BeaconDatasetAlleleResponse {
 
   return   {
 
-    dataset_id          =>  $dataset,
-    exists              =>  $counts->{exists},
-    error               =>  $args->{errorM},
-    frequency           =>  $counts->{frequency} * 1,
-    variant_count       =>  $counts->{variant_count} * 1,
-    call_count          =>  $counts->{call_count} * 1,
-    sample_count        =>  $counts->{sample_count} * 1,
-    note                =>  ($dataset =~ /dgv/i ? 'Callsets represent the study count.' : q{}),
-    external_url        =>  'http://beacon.arraymap.org',
-    info                =>  {
-      callset_access_handle     =>  $args->{access_id},
-      payload                   =>  $payload,
-      ontology_selection        =>  $args->{procPar}->{ontologies},
-      phenotype_response        =>  $bsPhenotypeResponse,
-      description               =>  'The query was against database "'.$db.'", variant collection "'.$args->{datasetPar}->{varcoll}.'". '.$counts->{call_count}.' matched callsets for '.$counts->{variant_count}.' distinct variants. Out of '.$biosAllNo.' biosamples in the database, '.$biosBaseNo.' matched the biosample query; of those, '.$counts->{sample_count}.' had the variant.',
+    datasetId   =>  $dataset,
+    exists      =>  $counts->{exists},
+    error       =>  $args->{errorM},
+    frequency   =>  $counts->{frequency} * 1,
+    variantCount    =>  $counts->{variant_count} * 1,
+    callCount   =>  $counts->{call_count} * 1,
+    sampleCount =>  $counts->{sample_count} * 1,
+    note        =>  ($dataset =~ /dgv/i ? 'Callsets represent the study count.' : q{}),
+    externalUrl    =>  'http://beacon.arraymap.org',
+    info        =>  {
+      callset_access_handle =>  $args->{access_id},
+      payload               =>  $payload,
+      ontology_selection    =>  $args->{procPar}->{ontologies},
+      phenotype_response    =>  $bsPhenotypeResponse,
+      description           =>  'The query was against database "'.$db.'", variant collection "'.$args->{datasetPar}->{varcoll}.'". '.$counts->{call_count}.' matched callsets for '.$counts->{variant_count}.' distinct variants. Out of '.$biosAllNo.' biosamples in the database, '.$biosBaseNo.' matched the biosample query; of those, '.$counts->{sample_count}.' had the variant.',
     },
 
   };
