@@ -13,14 +13,6 @@ use MongoDB::MongoClient;
 use Data::Dumper;
 use UUID::Tiny;
 
-# local packages
-# use PGX::GenomeIntervals::CytobandReader;
-# use PGX::GenomeIntervals::GenomeIntervals;
-# use PGX::GenomeIntervals::IntervalStatistics;
-# use PGX::GenomePlots::HistoPlotter;
-# use PGX::GenomePlots::PlotParameters;
-# use PGX::GenomePlots::Genomeplot;
-#
 =pod
 
 Script for linking callset ids from Beacon+ query to the original data
@@ -47,8 +39,6 @@ _add_nice_form();
 ################################################################################
 # subs #########################################################################
 ################################################################################
-
-
 
 sub _add_nice_form {
 
@@ -142,6 +132,7 @@ Content-type: text/html
                 <option value="histogram" selected="selected">Plot DUP/DEL histogram</option>
                 <option value="callsets">Export Callset Data</option>
                 <option value="biosamples">Export Biosample Data</option>
+                <option value="variants">Export Variants Data</option>
               </select>
             </div>
         </div>

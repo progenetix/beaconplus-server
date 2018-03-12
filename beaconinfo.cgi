@@ -46,6 +46,9 @@ if (param('q') =~ /get_datasetids/i) {
 
     my $datasetId       =   $db;
     $datasetId          =~  s/_ga4gh$//i;
+
+    if ($datasetId =~ /progenetix/i) { next }
+
     push(@{ $beaconInfo->{dataset} }, {datasetId => $datasetId});
 
 
@@ -54,16 +57,6 @@ if (param('q') =~ /get_datasetids/i) {
   exit;
 
 }
-
-
-
-
-
-
-
-
-
-
 
 my $beaconInfo  =   {
   beaconId      =>  $beaconId,
@@ -129,7 +122,7 @@ foreach my $db (grep{ /_ga4gh/ } $dbClient->database_names()) {
       datasetId         => $datasetId,
       name              => $datasetId,
       info              => { collections => $collInfos, ontology_terms => $bsOntologyTermIds },
-      assemblyId        => [ keys %datasetRefs ],
+      assembly_id        => [ keys %datasetRefs ],
       variantCount      => $varNo,
 #      callCount         => $callNo,
     }

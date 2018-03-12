@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 # Progenetix & arrayMap site scripts
-# © 2000-2017 Michael Baudis: m@baud.is
+# © 2000-2018 Michael Baudis: m@baud.is
 
 use strict;
 use CGI::Carp qw(fatalsToBrowser);
@@ -23,6 +23,14 @@ Please see the associated beaconresponse.md
 
 if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
 
+# print 'Content-type: text'."\n\n";
+# my @names = param();
+# foreach (@names) {
+#   print Dumper(param($_));
+# }
+# print $ENV{QUERY_STRING};
+# exit;
+
 my $args        =   {};
 
 $args->{datasetPar}     =   _getDatasetParams();
@@ -36,15 +44,10 @@ $args->{biosQpar}       =   _getBiosampleParams();
 $args->{biosQ}          =   _createBiosampleQuery($args->{biosQpar});
 
 # catching some input errors ###################################################
-
 # TODO: expand ...
 $args->{errorM}         =   _checkParameters($args->{varQpar});
 $args->{queryScope}     =   'datasetAlleleResponses';
 $args->{queryType}      =   'alleleRequest';
-if ($args->{varQpar}->{variant_type} =~ /^D(?:UP)|(?:EL)$/i) {
-  $args->{datasetPar}->{varcoll}        =~  s/_alleles_/_cnv_/;
-  $args->{datasetPar}->{callsetcoll}    =~  s/_alleles_/_cnv_/;
-}
 
 ################################################################################
 
@@ -54,13 +57,13 @@ if (grep{ $_->{exists} } @$datasetResponses) { $bcExists = \1 }
 my $response    =   {
   beacon_id     =>  "org.progenetix:progenetix-beacon",
   exists        =>  $bcExists,
-  allele_request        =>  _makePrettyQuery(),
+  allele_request    =>  _makePrettyQuery(),
   api_version   =>  "0.4",
   url           =>  'http://progenetix.org/beacon/info/',
   dataset_allele_responses      =>   $datasetResponses,
-  info  =>  {
-    query_string        =>  $ENV{QUERY_STRING},
-    version             =>  'Beacon+ implementation based on the development branch of the beacon-team project: https://github.com/ga4gh/beacon-team/blob/develop-proto/src/main/proto/ga4gh/beacon.proto',
+  info          =>  {
+    query_string    =>  $ENV{QUERY_STRING},
+    version     =>  'Beacon+ implementation based on the development branch of the beacon-team project: https://github.com/ga4gh/beacon-team/blob/develop-proto/src/main/proto/ga4gh/beacon.proto',
   },
 
 };
@@ -82,22 +85,22 @@ sub _getDatasetParams {
   my $qPar      =   {};
 
   my %defaults  =   (
-    varcoll     =>  'variants_alleles',
-    callsetcoll =>  'callsets_alleles',
+    varcoll     =>  'variants',
+    callsetcoll =>  'callsets',
   );
 
   $qPar->{samplecoll}   =   param('samplecoll');
   if ($qPar->{samplecoll} !~ /^\w{3,64}$/) { $qPar->{samplecoll} = 'biosamples' }
 
-  $qPar->{dataset_id}   =   param('dataset_id');
-  $qPar->{assembly_id}  =   param('assembly_id');
-  if ($qPar->{assembly_id} !~ /^\w{3,64}$/) { $qPar->{assembly_id} = 'GRCh36' }
+  $qPar->{dataset_id}   =   param('datasetId');
+  $qPar->{assembly_id}  =   param('assemblyId');
+  if ($qPar->{assembly_id} !~ /^\w{3,64}$/) { $qPar->{assembly_id} = 'GRCh38' }
 
   foreach (keys %defaults) {
 
     $qPar->{$_} =   param($_);
     if ($qPar->{$_} !~ /^\w{3,64}$/) { $qPar->{$_} = $defaults{$_} }
-    $qPar->{$_} .=   '_'.lc($qPar->{assembly_id});
+#    $qPar->{$_} .=   '_'.lc($qPar->{assembly_id});
 
   }
 
@@ -150,7 +153,7 @@ Atributes not used (yet):
     id
     bio_characteristics.ontology_terms.term_id
   )) { $qPar->{$_}      =   [ param('biosamples.'.$_) ] }
-#print Dumper($qPar);
+
   return $qPar;
 
 }
@@ -160,39 +163,57 @@ Atributes not used (yet):
 sub _makePrettyQuery {
 
   my $qPar      =   {};
+  foreach my $parameter (qw(
+    datasetId
+    assemblyId
+    referenceName
+    referenceBases
+    alternateBases
+    start
+    end
+    startMin
+    startMax
+    endMin
+    endMax
+  )) {
+    if (param($parameter) =~ /\w/) {
+      $qPar->{$parameter} =   param($parameter);
+    }
+  };
+
+  # cleaning - e.g. <DEL> => DEL
+  foreach my $key (keys %$qPar) {
+    $qPar->{$key}   =~ s/[^\w\-\<\>]//g }
+
+  foreach my $parameter (qw(
+    start
+    end
+    startMin
+    startMax
+    endMin
+    endMax
+  )) {
+    if ($qPar->{$parameter} =~ /^\d+?$/) {
+      $qPar->{$parameter} =   $qPar->{$parameter} * 1;
+    }
+  };
+
 
 # TODO: Implement alternate_bases as list
 
-  foreach (qw(
-    id
-    reference_name
-    reference_bases
-    alternate_bases
-    variant_type
-    start
-    end
-    start_min
-    start_max
-    end_min
-    end_max
-  )) { $qPar->{$_}      =   param('variants.'.$_) }
-
   $qPar->{"bio_characteristics.ontology_terms.term_id"} = param('biosamples.bio_characteristics.ontology_terms.term_id');
 
-  return { '$and' => [ map{ { $_ => $qPar->{$_} } } (grep{ $qPar->{$_} =~ /\w/ } keys %$qPar )] }
+  return $qPar;
 
 }
 
-
-
-
-
+################################################################################
 sub _getVariantParams {
 
 =pod
 
 Atributes not used (yet):
-  variant_set_id
+  variantset_id
   svlen
   filters_applied
   filters_passed
@@ -202,26 +223,32 @@ Atributes not used (yet):
 
 =cut
 
-  my $qPar      =   {};
-
 # TODO: Implement alternate_bases as list
+
+  my $qPar      =   {
+    reference_name  =>  param('referenceName') =~ /\w/ ? param('referenceName') : q{},
+    reference_bases =>  param('referenceBases') =~ /\w/ ? param('referenceBases') : q{},
+    alternate_bases =>  param('alternateBases') =~ /\w/ ? param('alternateBases') : q{},
+    start           =>  param('start') =~ /\w/ ? param('start') : q{},
+    end             =>  param('end') =~ /\w/ ? param('end') : q{},
+    start_min       =>  param('startMin') =~ /\w/ ? param('startMin') : q{},
+    start_max       =>  param('startMax') =~ /\w/ ? param('startMax') : q{},
+    end_min         =>  param('endMin') =~ /\w/ ? param('endMin') : q{},
+    end_max         =>  param('endMax') =~ /\w/ ? param('endMax') : q{},
+  };
 
   foreach (qw(
     id
-    reference_name
-    reference_bases
-    alternate_bases
-    variant_type
-    start
-    end
-    start_min
-    start_max
-    end_min
-    end_max
   )) { $qPar->{$_}      =   param('variants.'.$_) }
 
+  foreach my $key (keys %$qPar) {
+    $qPar->{$key}   =~ s/[^\w\-\.]//g }
+
+  if ($qPar->{reference_name}  =~  /^[\dxy]/i) {
+    $qPar->{reference_name} = 'chr'.$qPar->{reference_name}}
+
   foreach (qw(
-  )) { $qPar->{$_}      =   [ sort {$a <=> $b } (param('variants.'.$_)) ] }
+  )) { $qPar->{$_}      =   [ sort {$a <=> $b } (param($_)) ] }
 
   return $qPar;
 
@@ -256,12 +283,12 @@ sub _checkParameters {
   my $qPar      =   $_[0];
   my $error;
 
-  if ( $qPar->{variant_type} =~ /^D(?:UP)|(?:EL)$/ && ( $qPar->{start_range}->[0] !~ /^\d+?$/ || $qPar->{end_range}->[0] !~ /^\d+?$/ ) ) {
+  if ( $qPar->{alternate_bases} =~ /^D(?:UP)|(?:EL)$/ && ( $qPar->{start_range}->[0] !~ /^\d+?$/ || $qPar->{end_range}->[0] !~ /^\d+?$/ ) ) {
     $error      .=    '"variants.start" (and also start_min, start_max) or "variants.end" (and also end_min, end_max) did not contain a numeric value. ' }
   if ($qPar->{reference_name} !~ /^(?:(?:(?:1|2)?\d)|x|y)$/i) {
     $error      .=    '"variants.reference_name" did not contain a valid value (e.g. "chr17" "8", "X"). ' }
-  if ( $qPar->{variant_type} !~ /^D(?:UP)|(?:EL)$/ && $qPar->{alternate_bases} !~ /^[ATGC]+?$/ ) {
-    $error      .=    'There was no valid value for either "variants.variant_type" or "variants.alternate_bases". ' }
+  if ( $qPar->{alternate_bases} !~ /^D(?:UP)|(?:EL)$/ && $qPar->{alternate_bases} !~ /^[ATGC]+?$/ ) {
+    $error      .=    'There was no valid value for either "variants.alternate_bases". ' }
 
   return $error;
 
@@ -315,12 +342,12 @@ sub _createVariantQuery {
   my $qObj      =   {};
 
   #structural query
-  if ($qPar->{variant_type} =~ /^D(?:UP)|(?:EL)$/) {
+  if ($qPar->{alternate_bases} =~ /^D(?:UP)|(?:EL)$/) {
 
     $qObj       =   {
       '$and'    => [
         { reference_name        =>  $qPar->{reference_name} },
-        { variant_type          =>  $qPar->{variant_type} },
+        { variant_type          =>  $qPar->{alternate_bases} },
         { start =>  { '$gte'    =>  1 * $qPar->{start_range}->[0] } },
         { start =>  { '$lte'    =>  1 * $qPar->{start_range}->[1] } },
         { end   =>  { '$gte'    =>  1 * $qPar->{end_range}->[0] } },
@@ -331,7 +358,7 @@ sub _createVariantQuery {
   }
 
   # allele query
-  elsif ($qPar->{alternate_bases} =~ /^[ATGC]+?$/) {
+  elsif ($qPar->{alternate_bases} =~ /^[ATGCN]+?$/) {
 
     my @qList   =   (
       { reference_name  =>  $qPar->{reference_name} },
@@ -411,7 +438,7 @@ message BeaconDatasetAlleleResponse {
   // Number of variants matching the allele request in the dataset.
   int64 variant_count = 5;
 
-  // Number of calls matching the allele request in the dataset.
+  // Number of callsets matching the allele request in the dataset.
   int64 call_count = 6;
 
   // Number of samples matching the allele request in the dataset.
@@ -437,8 +464,8 @@ message BeaconDatasetAlleleResponse {
   $counts->{sample_count}   =   0;
 
   my $bsBioMatchIds     =   []; # biosample ids matching the biosample_Request
-  my $csBioMatchIds     =   []; # callset ids matching the biosample_Request
   my $csVarBioMatchIds  =   []; # callset ids with varQ and biosQ match
+   my $bsVarBioMatchIds =   []; # biosample ids with varQ and biosQ match
 
   my $biosBaseNo;
   my $callBaseNo        =   0;
@@ -460,17 +487,10 @@ message BeaconDatasetAlleleResponse {
                         );
     $biosBaseNo =   scalar @$bsBioMatchIds;
 
-    $csBioMatchIds  =   _get_mongo_distinct(
-                          $dbconn,
-                          $args->{datasetPar}->{callsetcoll},
-                          'id',
-                          { biosample_id => { '$in' =>  $bsBioMatchIds } },
-                        );
-    $varBaseQ   =   { 'calls.call_set_id' => { '$in' =>  $csBioMatchIds } };
     $args->{varQ}   =   { '$and' =>
       [
         $args->{varQ},
-        $varBaseQ,
+        { biosample_id => { '$in' =>  $bsBioMatchIds } },
       ],
     };
 
@@ -482,15 +502,28 @@ message BeaconDatasetAlleleResponse {
 
   ##############################################################################
 
-  # retrieving all matching calls (lists in variants)
-  $cursor	      =		$dbconn->get_collection( $args->{datasetPar}->{varcoll} )->find( $args->{varQ} )->fields( { calls => 1 } );
+  my $fields    =   {
+    callset_id      => 1,
+    biosample_id    => 1,
+    digest          => 1,
+  };
+  if ($dataset =~ /dgv/i) {
+    $fields->{info} =   1 }
+
+  # retrieving all matching variants
+  $cursor	      =		$dbconn->get_collection( $args->{datasetPar}->{varcoll} )->find( $args->{varQ} )->fields( {   } );
   $vars	        =		[ $cursor->all ];
 
-  $counts->{variant_count}  =   scalar @$vars;
+  my %csVarMatches  =   map{ $_->{callset_id} => 1 } @$vars;
+  my %bsVarMatches  =   map{ $_->{biosample_id} => 1 } @$vars;
+  my %distVars      =   map{ $_->{digest} => 1 } @$vars;
+
+  $counts->{variant_count}  =   scalar keys %distVars;
   if ($counts->{variant_count} > 0) { $counts->{'exists'} = \1 }
 
   my %callSets  =   ();
-  my $csIds     =   [];
+  $csVarBioMatchIds =   [ keys %csVarMatches ];
+  $bsVarBioMatchIds =   [ keys %bsVarMatches ];
 
   # DGV as a special case ######################################################
 
@@ -503,20 +536,18 @@ message BeaconDatasetAlleleResponse {
     # information about samples coming from "sample_size" (of the study)
     # and "count".
     foreach my $var (@$vars) {
-      foreach (@{ $var->{calls} }) {
-        $callSets{ $_->{call_set_id} }  =   $_->{info}->{sample_size};
-        $counts->{call_count} +=  $_->{info}->{count};
-        foreach my $ssvar (split(',', $_->{info}->{supporting_variants})) {
-          $dgssvar{$ssvar}     =   1;
-        }
-        foreach my $svar (split(',', $_->{info}->{accession})) {
-          $dgsvar{$svar}    =   1;
-        }
+      $callSets{ $var->{callset_id} }  =   $var->{info}->{sample_size};
+      $counts->{call_count} +=  $var->{info}->{count};
+      foreach my $ssvar (split(',', $var->{info}->{supporting_variants})) {
+        $dgssvar{$ssvar} =  1;
+      }
+      foreach my $svar (split(',', $var->{info}->{accession})) {
+        $dgsvar{$svar}  =   1;
       }
     }
 
-    if ($counts->{c_all} > 0) {
-      $counts->{frequency}  =   sprintf "%.4f",  $counts->{call_count} / $counts->{c_all} }
+#     if ($counts->{c_all} > 0) {
+#       $counts->{frequency}  =   sprintf "%.4f",  $counts->{call_count} / $counts->{c_all} }
 
     $payload    =   {
       supporting_variants   =>   [ sort keys %dgssvar ],
@@ -529,34 +560,13 @@ message BeaconDatasetAlleleResponse {
 
   else {
 
-    if (grep{ /.../ } keys %{ $args->{biosQ} } ) {
-      foreach my $var (@$vars) {
-        foreach (@{ $var->{calls} }) {
-          my $csid      =   $_->{call_set_id};
-          if (grep{ $_ eq $csid } @$csBioMatchIds) {
-            $callSets{ $csid }  +=   1;
-    }}}}
+    $counts->{call_count}   =   scalar @$csVarBioMatchIds;
+    $counts->{sample_count} =   scalar @$bsVarBioMatchIds;
 
-    else {                              # no csid check
-      foreach my $var (@$vars) {
-        foreach (@{ $var->{calls} }) {
-          $callSets{ $_->{call_set_id} }  +=   1;
-    }}}
-
-    $counts->{sample_count} =   _count_mongo_distinct(
-                                  $dbconn,
-                                  $args->{datasetPar}->{callsetcoll},
-                                  'biosample_id',
-                                  { id => { '$in' => [ keys %callSets ] } },
-                                );
+    if ($biosBaseNo > 0) {
+      $counts->{frequency}  =   sprintf "%.4f",  $counts->{sample_count} / $biosBaseNo }
 
   }
-
-  $csVarBioMatchIds     =   [ keys %callSets ];
-  foreach (keys %callSets) { $counts->{call_count} += $callSets{ $_ } }
-  if ($biosBaseNo > 0) {
-    $counts->{frequency}    =   sprintf "%.4f",  $counts->{sample_count} / $biosBaseNo }
-
 
   ##############################################################################
 
@@ -572,7 +582,9 @@ message BeaconDatasetAlleleResponse {
   MongoDB::MongoClient->new()->get_database( 'progenetix' )->get_collection( 'querybuffer' )->insert($stored_cs);
 
   if ($dataset =~ /dgv/i) {
-    $counts->{frequency}       =   "NA" }
+    $counts->{frequency}    =   "NA";
+    $counts->{sample_count} =   "NA";
+  }
 
   ##############################################################################
 
@@ -580,7 +592,7 @@ message BeaconDatasetAlleleResponse {
                               $dbconn,
                               $args->{datasetPar}->{samplecoll},
                               'bio_characteristics.ontology_terms.term_id',
-                              { id =>  { '$in' => $bsBioMatchIds } },
+                              { id =>  { '$in' => $bsVarBioMatchIds } },
                             );
 
   ##############################################################################
@@ -627,10 +639,10 @@ message BeaconDatasetAlleleResponse {
     dataset_id          =>  $dataset,
     exists              =>  $counts->{exists},
     error               =>  $args->{errorM},
-    frequency           =>  $counts->{frequency},
-    variant_count       =>  $counts->{variant_count},
-    call_count          =>  $counts->{call_count},
-    sample_count        =>  $counts->{sample_count},
+    frequency           =>  $counts->{frequency} * 1,
+    variant_count       =>  $counts->{variant_count} * 1,
+    call_count          =>  $counts->{call_count} * 1,
+    sample_count        =>  $counts->{sample_count} * 1,
     note                =>  ($dataset =~ /dgv/i ? 'Callsets represent the study count.' : q{}),
     external_url        =>  'http://beacon.arraymap.org',
     info                =>  {
@@ -638,7 +650,7 @@ message BeaconDatasetAlleleResponse {
       payload                   =>  $payload,
       ontology_selection        =>  $args->{procPar}->{ontologies},
       phenotype_response        =>  $bsPhenotypeResponse,
-      description               =>  'The query was against database "'.$db.'", variant collection "'.$args->{datasetPar}->{varcoll}.'". '.$counts->{call_count}.' matched calls for '.$counts->{variant_count}.' distinct variants. Out of '.$biosAllNo.' biosamples in the database, '.$biosBaseNo.' matched the biosample query; of those, '.$counts->{sample_count}.' had the variant.',
+      description               =>  'The query was against database "'.$db.'", variant collection "'.$args->{datasetPar}->{varcoll}.'". '.$counts->{call_count}.' matched callsets for '.$counts->{variant_count}.' distinct variants. Out of '.$biosAllNo.' biosamples in the database, '.$biosBaseNo.' matched the biosample query; of those, '.$counts->{sample_count}.' had the variant.',
     },
 
   };

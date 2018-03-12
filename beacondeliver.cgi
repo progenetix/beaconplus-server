@@ -14,9 +14,6 @@ use Data::Dumper;
 use UUID::Tiny;
 
 # local packages
-BEGIN {
- push @INC, '/Library/WebServer/cgi-bin';
-}
 use PGX::GenomeIntervals::IntervalStatistics;
 use PGX::GenomePlots::HistoPlotter;
 use PGX::GenomePlots::Genomeplot;
@@ -29,22 +26,32 @@ Please see the associated beaconresponse.md
 
 =cut
 
-our $tempdb     =   'progenetix';
-our $tmpcoll    =   'querybuffer';
+my $tempdb      =   'progenetix';
+my $tmpcoll     =   'querybuffer';
 
 #if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
 
 # parameters
-our $access_id  =   param('accessid');
-our $dataStyle  =   param('datastyle');
+my $access_id   =   param('accessid');
 our $todo       =   param('do');
-our $genome     =   param('assembly_id');
-our $chr2plot   =   param('chr2plot');
 our $cgi        =   new CGI;
+
+if ($access_id  =~  /[^\w\-]/) {
+
+  print 'Content-type: text'."\n\n";
+  print 'Wrong of missing access_id parameter '.$access_id;
+
+  exit;
+}
+
+$MongoDB::Cursor::timeout = 120000;
+
+our $tmpdata    =    MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection( $tmpcoll )->find_one( { _id	=>  $access_id } );
 
 _print_histogram();
 _export_callsets();
 _export_biosamples();
+_export_variants();
 
 ################################################################################
 # subs #########################################################################
@@ -54,34 +61,26 @@ sub _print_histogram {
 
   if ($todo !~ /histo/i) { return }
 
-
   my $args      =   {};
-  $args->{'-genome'}    ||= $genome     ||= 'grch36';
-  $args->{'-chr2plot'}  ||= $chr2plot   ||= join(',', 1..22,'X');
+  $args->{'-genome'}    =   'grch38';
   $args->{'-binning'}   =   1000000;
   $args->{'-plotid'}    =   'histoplot';
-  $args->{'-plottype'}       =   'histogram';
-
-  $MongoDB::Cursor::timeout = 120000;
-
-  my $tmpcoll   =   MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection($tmpcoll);
-  my $tmpdata   =   $tmpcoll->find_one( { _id =>  $access_id } );
-  if ($tmpdata->{query_coll} =~ /_(((?:grch)|(?:hg))\d\d)$/i) {
-    $args->{'-genome'}  =   $1 }
+  $args->{'-do_plottype'}   =   'histogram';
+  $args->{'-chr2plot'}  =   '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,X';
 
   my $datacoll  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} )->get_collection($tmpdata->{query_coll});
   my $dataQuery =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
-  my $cursor    =   $datacoll->find( $dataQuery )->fields( { info => 1, statusmaps => 1 } );
-  my $callsets  =   [ $cursor->all ];
+  my $cursor	  =		$datacoll->find( $dataQuery )->fields( { 'info' => 1 } );
+  my $callsets	=		[ $cursor->all ];
 
+  $callsets     =   [ grep{ exists $_->{info}->{statusmaps} } @$callsets ];
   $args->{'-text_bottom_left'}  =   scalar(@$callsets).' samples';
 
-  if ($dataStyle =~ /old/i) {
-    $callsets   =   [ map{  { info => { statusmaps => $_->{statusmaps}}} } @$callsets ];
-  }
+  # print 'Content-type: text'."\n\n";
+  # print Dumper($callsets);
 
   my $plot      =   new PGX::GenomePlots::Genomeplot($args);
-  $plot->plot_add_frequencymaps($callsets);
+  $plot->plot_add_frequencymaps( [ { statusmapsets =>  $callsets } ] );
   $plot->return_histoplot_svg();
 
   print 'Content-type: image/svg+xml'."\n\n";
@@ -97,15 +96,11 @@ sub _export_callsets {
 
   print 'Content-type: application/json'."\n\n";
 
-  $MongoDB::Cursor::timeout = 120000;
-
-  my $tmpcoll   =   MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection($tmpcoll);
-  my $tmpdata   =   $tmpcoll->find_one( { _id =>  $access_id } );
   my $datacoll  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} )->get_collection($tmpdata->{query_coll});
   my $dataQuery =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
-  my $cursor    =   $datacoll->find( $dataQuery )->fields( { info => 0, _id => 0, updated => 0, created => 0 } );
+  my $cursor	  =		$datacoll->find( $dataQuery )->fields( { info => 0, _id => 0, updated => 0, created => 0 } );
 
-  print JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
+  print	JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
 
 }
 
@@ -117,21 +112,35 @@ sub _export_biosamples {
 
   print 'Content-type: application/json'."\n\n";
 
-  $MongoDB::Cursor::timeout = 120000;
-
-  my $tmpcoll   =   MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection($tmpcoll);
-  my $tmpdata   =   $tmpcoll->find_one( { _id =>  $access_id } );
   my $dataconn  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} );
+  
+  # for biosamples, first the biosample ids have to be retrieved from callsets
   my $datacall  =   $dataconn->run_command([
                       "distinct"=>  $tmpdata->{query_coll},
                       "key"     =>  'biosample_id',
-                      "query"   =>  { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } },
+                      "query"   =>  { id => { '$in' => $tmpdata->{query_values} } },
                     ]);
   my $biosids   =   $datacall->{values};
   my $datacoll  =   $dataconn->get_collection('biosamples');
-  my $cursor    =   $datacoll->find( { id => { '$in' => $biosids } } )->fields( { attributes => 0, _id => 0, updated => 0, created => 0 } );
+  my $cursor	  =		$datacoll->find( { id => { '$in' => $biosids } } )->fields( { attributes => 0, _id => 0, updated => 0, created => 0 } );
 
-  print JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
+  print	JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
+
+}
+
+################################################################################
+
+sub _export_variants {
+
+  if ($todo !~ /variants/i) { return }
+
+  print 'Content-type: application/json'."\n\n";
+
+  my $dataconn  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} );
+  my $datacoll  =   $dataconn->get_collection('variants');
+  my $cursor	  =		$datacoll->find( { callset_id => { '$in' => $tmpdata->{query_values} } } )->fields( { attributes => 0, _id => 0, updated => 0, created => 0 } );
+
+  print	JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
 
 }
 

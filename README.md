@@ -20,8 +20,8 @@ The script uses some naming conventions for databases and collections:
 * collections
    * `individuals`
    * `biosamples`
-   * `callsets`\_variantType\_`assembly_id` (e.g. *callsets_cnv_grch36*,  *callsets_snv_grch38*)
-   * `variants`\_scope\_`assembly_id` (e.g. *variants_cnv_grch36*)
+   * `callsets`
+   * `variants`
 
 
 ### Example use, command line:
