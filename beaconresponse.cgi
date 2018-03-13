@@ -36,7 +36,7 @@ my $url         =   'http://progenetix.org/beacon/info/';
 my $altUrl      =   'http://arraymap.org/beacon/info/';
 my $logoUrl     =   'http://progenetix.org/p/progenetix.png';
 my $actions     =   [];
-my $ap
+my $apiVersion  =   '0.4';
 
 
 
@@ -67,7 +67,7 @@ my $response    =   {
   beaconId      =>  "org.progenetix:progenetix-beacon",
   exists        =>  $bcExists,
   alleleRequest =>  _makePrettyQuery(),
-  apiVersion    =>  "0.4",
+  apiVersion    =>  $apiVersion,
   url           =>  'http://progenetix.org/beacon/info/',
   datasetAlleleResponses    =>   $datasetResponses,
   info          =>  {
