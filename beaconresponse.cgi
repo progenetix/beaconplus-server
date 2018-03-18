@@ -28,7 +28,7 @@ if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
 # foreach (@names) {
 #   print Dumper(param($_));
 # }
-# print $ENV{QUERY_STRING};
+# print $ENV{QUERY_STRING}."\n\n";
 # exit;
 
 my $beaconId    =   'progenetix-beacon';
@@ -178,6 +178,7 @@ sub _makePrettyQuery {
     referenceName
     referenceBases
     alternateBases
+    variantType
     start
     end
     startMin
@@ -238,6 +239,7 @@ Atributes not used (yet):
     reference_name  =>  param('referenceName') =~ /\w/ ? param('referenceName') : q{},
     reference_bases =>  param('referenceBases') =~ /\w/ ? param('referenceBases') : q{},
     alternate_bases =>  param('alternateBases') =~ /\w/ ? param('alternateBases') : q{},
+    variant_type    =>  param('variantType') =~ /\w/ ? param('variantType') : q{},
     start           =>  param('start') =~ /\w/ ? param('start') : q{},
     end             =>  param('end') =~ /\w/ ? param('end') : q{},
     start_min       =>  param('startMin') =~ /\w/ ? param('startMin') : q{},
@@ -292,12 +294,12 @@ sub _checkParameters {
   my $qPar      =   $_[0];
   my $error;
 
-  if ( $qPar->{alternate_bases} =~ /^D(?:UP)|(?:EL)$/ && ( $qPar->{start_range}->[0] !~ /^\d+?$/ || $qPar->{end_range}->[0] !~ /^\d+?$/ ) ) {
-    $error      .=    '"variants.start" (and also start_min, start_max) or "variants.end" (and also end_min, end_max) did not contain a numeric value. ' }
+  if ( $qPar->{variant_type} =~ /^D(?:UP)|(?:EL)$/ && ( $qPar->{start_range}->[0] !~ /^\d+?$/ || $qPar->{end_range}->[0] !~ /^\d+?$/ ) ) {
+    $error      .=    '"startMin" (and also startMax) or "endMin" (and also endMax) did not contain a numeric value. ' }
   if ($qPar->{reference_name} !~ /^(?:(?:(?:1|2)?\d)|x|y)$/i) {
     $error      .=    '"variants.reference_name" did not contain a valid value (e.g. "chr17" "8", "X"). ' }
-  if ( $qPar->{alternate_bases} !~ /^D(?:UP)|(?:EL)$/ && $qPar->{alternate_bases} !~ /^[ATGC]+?$/ ) {
-    $error      .=    'There was no valid value for either "variants.alternate_bases". ' }
+  if ( $qPar->{variant_type} !~ /^D(?:UP)|(?:EL)$/ && $qPar->{alternate_bases} !~ /^[ATGC]+?$/ ) {
+    $error      .=    'There was no valid value for either "alternateBases or variantType". ' }
 
   return $error;
 
@@ -351,12 +353,12 @@ sub _createVariantQuery {
   my $qObj      =   {};
 
   #structural query
-  if ($qPar->{alternate_bases} =~ /^D(?:UP)|(?:EL)$/) {
+  if ($qPar->{variant_type} =~ /^D(?:UP)|(?:EL)$/) {
 
     $qObj       =   {
       '$and'    => [
         { reference_name        =>  $qPar->{reference_name} },
-        { variant_type          =>  $qPar->{alternate_bases} },
+        { variant_type          =>  $qPar->{variant_type} },
         { start =>  { '$gte'    =>  1 * $qPar->{start_range}->[0] } },
         { start =>  { '$lte'    =>  1 * $qPar->{start_range}->[1] } },
         { end   =>  { '$gte'    =>  1 * $qPar->{end_range}->[0] } },
