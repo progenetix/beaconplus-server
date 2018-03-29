@@ -51,7 +51,6 @@ if (param('q') =~ /get_datasetids/i) {
 
     push(@{ $beaconInfo->{dataset} }, {datasetId => $datasetId});
 
-
   }
   print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->encode($beaconInfo)."\n";
   exit;
