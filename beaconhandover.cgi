@@ -61,9 +61,9 @@ Content-type: text/html
   <title>Beacon+ - Feature evaluation for the GA4GH Beacon project</title>
   <meta name="google-site-verification" content="D_DC_Zxy3cCmrst5uaScIDD7daZ2_HO7Vhq2ZjfSIMo" />
   <meta name="google-site-verification" content="is7-_LmgwVxd7M4_XIn6psLPjlZyk58QuP-DN7FC44g" />
-  <link rel="stylesheet" href="../beaconplus-ui/css/bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/beaconplus-ui/css/bootstrap/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-  <link rel="stylesheet" href="../beaconplus-ui/css/style.css">
+  <link rel="stylesheet" href="/beaconplus-ui/css/style.css">
   <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
   <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 
@@ -75,7 +75,7 @@ Content-type: text/html
 <div class="container">
 
   <div class="jumbotron" style="margin-bottom: 10px; padding:  20px 20px 30px 20px;">
-    <img src="../beaconplus-ui/img/beacon_logo_25x70.png" style="float: right;" />
+    <img src="/beaconplus-ui/img/beacon_logo_25x70.png" style="float: right;" />
     <h2 style="margin: 0px;">Beacon<span style="vertical-align: super; color: red; font-weight: 800;">+</span></h2>
   </div>
 
@@ -121,7 +121,7 @@ Content-type: text/html
 
     <div class="panel-body">
 
-      <form class="form-horizontal" id="handover-form" method="post" action="beacondeliver.cgi">
+      <form class="form-horizontal" id="handover-form" method="post" action="/beaconplus-server/beacondeliver.cgi">
 
         <input type="hidden" name="accessid" id="accessid" value="$access_id" />
 
@@ -135,6 +135,7 @@ Content-type: text/html
                 <option value="variants">Export Variants Data</option>
               </select>
             </div>
+            <input type="checkbox" name="jsonpretty" value="1" id="jsonpretty"> pretty JSON
         </div>
 
         <div class="form-group">
@@ -167,14 +168,14 @@ Content-type: text/html
   <div class="panel panel-default" style="border: none;">
     <div class="panel-body">
       <div style="display: flex; justify-content: space-between;">
-        <a href="http://arraymap.org" target="_blank"><img src="../beaconplus-ui/img/arraymap_black_180.png" style="height: 25px; margin: 5px;" /></a>
-        <a href="http://progenetix.org" target="_blank"><img src="../beaconplus-ui/img/progenetix_black_180.png" style="height: 25px; margin: 0px 5px 5px 5px;" /></a>
+        <a href="http://arraymap.org" target="_blank"><img src="/beaconplus-ui/img/arraymap_black_180.png" style="height: 25px; margin: 5px;" /></a>
+        <a href="http://progenetix.org" target="_blank"><img src="/beaconplus-ui/img/progenetix_black_180.png" style="height: 25px; margin: 0px 5px 5px 5px;" /></a>
         <div style="min-width: 300px;">
           This Beacon implementation is developed by the <a href="http://wiki.progenetix.org/Wiki/BaudisgroupIMLS/" target="_blank">Computational Oncogenomics Group</a> at the <a href="http://www.imls.uzh.ch/baudis/" target="_blank">University of Zurich</a>, with support from the <a href="https://www.sib.swiss/sibt/" target="_blank">SIB Technology group</a> and <a href="https://www.elixir-europe.org" target="_blank">ELIXIR</a>.
         </div>
-        <a href="http://www.uzh.ch" target="_blank"><img src="../beaconplus-ui/img/uzh_logo_pos_160x50.png" style="height: 25px; margin: 5px;" /></a>
-        <a href="http://elixir-europe.org" target="_blank"><img src="../beaconplus-ui/img/elixir_logo_grey_65x50.png" style="height: 25px; margin: 5px;" /></a>
-        <a href="http://sib.swiss" target="_blank"><img src="../beaconplus-ui/img/sib_logo_65x50.png" style="height: 25px; margin: 5px;" /></a>
+        <a href="http://www.uzh.ch" target="_blank"><img src="/beaconplus-ui/img/uzh_logo_pos_160x50.png" style="height: 25px; margin: 5px;" /></a>
+        <a href="http://elixir-europe.org" target="_blank"><img src="/beaconplus-ui/img/elixir_logo_grey_65x50.png" style="height: 25px; margin: 5px;" /></a>
+        <a href="http://sib.swiss" target="_blank"><img src="/beaconplus-ui/img/sib_logo_65x50.png" style="height: 25px; margin: 5px;" /></a>
       </div>
     </div>
   </div>

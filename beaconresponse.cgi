@@ -294,11 +294,13 @@ sub _checkParameters {
   my $qPar      =   $_[0];
   my $error;
 
-  if ( $qPar->{variant_type} =~ /^D(?:UP)|(?:EL)$/ && ( $qPar->{start_range}->[0] !~ /^\d+?$/ || $qPar->{end_range}->[0] !~ /^\d+?$/ ) ) {
-    $error      .=    '"startMin" (and also startMax) or "endMin" (and also endMax) did not contain a numeric value. ' }
+  if ( $qPar->{variant_type} =~ /^(?:UP)|(?:EL)$/ && ( $qPar->{start_range}->[0] !~ /^\d+?$/ || $qPar->{end_range}->[0] !~ /^\d+?$/ ) ) {
+    $error      .=    '"startMin" (and also startMax) or "endMin" (and also endMax) did not contain a numeric value - both are required for DUP & DEL. ' }
+  if ( $qPar->{variant_type} =~ /^BND$/ && ( $qPar->{start_range}->[0] !~ /^\d+?$/ && $qPar->{end_range}->[0] !~ /^\d+?$/ ) ) {
+    $error      .=    'Neither "startMin" (and also startMax) or "endMin" (and also endMax) did contain a numeric value - one range is required for BND. ' }
   if ($qPar->{reference_name} !~ /^(?:(?:(?:1|2)?\d)|x|y)$/i) {
     $error      .=    '"variants.reference_name" did not contain a valid value (e.g. "chr17" "8", "X"). ' }
-  if ( $qPar->{variant_type} !~ /^D(?:UP)|(?:EL)$/ && $qPar->{alternate_bases} !~ /^[ATGC]+?$/ ) {
+  if ( $qPar->{variant_type} !~ /^(?:DUP)|(?:DEL)|(?:BND)$/ && $qPar->{alternate_bases} !~ /^[ATGC]+?$/ ) {
     $error      .=    'There was no valid value for either "alternateBases or variantType". ' }
 
   return $error;
@@ -353,16 +355,42 @@ sub _createVariantQuery {
   my $qObj      =   {};
 
   #structural query
-  if ($qPar->{variant_type} =~ /^D(?:UP)|(?:EL)$/) {
+  if ($qPar->{variant_type} =~ /^D(?:UP)|(?:EL)$/i) {
 
     $qObj       =   {
       '$and'    => [
-        { reference_name        =>  $qPar->{reference_name} },
-        { variant_type          =>  $qPar->{variant_type} },
-        { start =>  { '$gte'    =>  1 * $qPar->{start_range}->[0] } },
-        { start =>  { '$lte'    =>  1 * $qPar->{start_range}->[1] } },
-        { end   =>  { '$gte'    =>  1 * $qPar->{end_range}->[0] } },
-        { end   =>  { '$lte'    =>  1 * $qPar->{end_range}->[1] } },
+        { reference_name      =>  $qPar->{reference_name} },
+        { variant_type        =>  $qPar->{variant_type} },
+        { start =>  { '$gte'  =>  1 * $qPar->{start_range}->[0] } },
+        { start =>  { '$lte'  =>  1 * $qPar->{start_range}->[1] } },
+        { end   =>  { '$gte'  =>  1 * $qPar->{end_range}->[0] } },
+        { end   =>  { '$lte'  =>  1 * $qPar->{end_range}->[1] } },
+      ],
+    };
+
+  }
+
+  elsif ($qPar->{variant_type} =~ /^BND$/i) {
+
+    $qObj       =   {
+      '$and'    => [
+        { reference_name  =>  $qPar->{reference_name} },
+        { '$or' =>  [
+          { variant_type  =>  'DUP' },
+          { variant_type  =>  'DEL' },
+        ] },
+        { '$or' =>  [
+          { '$and'  => [
+              { start =>  { '$gte'  =>  1 * $qPar->{start_range}->[0] } },
+              { start =>  { '$lte'  =>  1 * $qPar->{start_range}->[1] } },
+            ]
+          },
+          { '$and'  => [
+              { end =>  { '$gte'  =>  1 * $qPar->{start_range}->[0] } },
+              { end =>  { '$lte'  =>  1 * $qPar->{start_range}->[1] } },
+            ]
+          },
+        ] },
       ],
     };
 

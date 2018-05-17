@@ -34,6 +34,7 @@ my $tmpcoll     =   'querybuffer';
 # parameters
 my $access_id   =   param('accessid');
 our $todo       =   param('do');
+our $pretty     =   param('jsonpretty');
 our $cgi        =   new CGI;
 
 if ($access_id  =~  /[^\w\-]/) {
@@ -43,6 +44,9 @@ if ($access_id  =~  /[^\w\-]/) {
 
   exit;
 }
+
+if ($pretty !~ /^1|y/) {
+  $pretty       =   0 }
 
 $MongoDB::Cursor::timeout = 120000;
 
@@ -100,7 +104,7 @@ sub _export_callsets {
   my $dataQuery =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
   my $cursor	  =		$datacoll->find( $dataQuery )->fields( { info => 0, _id => 0, updated => 0, created => 0 } );
 
-  print	JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
+  print	JSON::XS->new->pretty( $pretty )->allow_blessed->convert_blessed->encode([$cursor->all]);
 
 }
 
@@ -124,7 +128,7 @@ sub _export_biosamples {
   my $datacoll  =   $dataconn->get_collection('biosamples');
   my $cursor	  =		$datacoll->find( { id => { '$in' => $biosids } } )->fields( { attributes => 0, _id => 0, updated => 0, created => 0 } );
 
-  print	JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
+  print	JSON::XS->new->pretty( $pretty )->allow_blessed->convert_blessed->encode([$cursor->all]);
 
 }
 
@@ -140,7 +144,7 @@ sub _export_variants {
   my $datacoll  =   $dataconn->get_collection('variants');
   my $cursor	  =		$datacoll->find( { callset_id => { '$in' => $tmpdata->{query_values} } } )->fields( { attributes => 0, _id => 0, updated => 0, created => 0 } );
 
-  print	JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode([$cursor->all]);
+  print	JSON::XS->new->pretty( $pretty )->allow_blessed->convert_blessed->encode([$cursor->all]);
 
 }
 
