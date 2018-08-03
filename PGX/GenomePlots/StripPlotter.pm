@@ -126,7 +126,6 @@ Returns:
     foreach my $refName (@{ $plot->{parameters}->{chr2plot} }) {
       my $areaW =  sprintf "%.1f", ($plot->{referencebounds}->{$refName}->[1] - $plot->{referencebounds}->{$refName}->[0]) * $plot->{basepixfrac};
       $stripArea->filledRectangle($area_x0, $gd_y0, ($area_x0 + $areaW), $gd_yn, $gdAreaCol);
-#print Dumper(join(' :: ', $sample->{name}, $refName, $area_x0, $gd_y0, $gd_yn));
 
       my $areaSegs  =   [ grep{ $_->{reference_name} eq $refName } @{ $segSet } ];
       $areaSegs     =   [ grep{ $_->{variant_type} =~ /\w/ } @$areaSegs];

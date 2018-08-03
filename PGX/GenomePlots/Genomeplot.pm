@@ -34,10 +34,11 @@ sub new {
 
   my $class     =   shift;
   my $args      =   shift;
+  $args         =   args_modify_plot_parameters(read_plot_defaults(), $args);
   my $self      =   {
-    parameters  =>  args_modify_plot_parameters(read_plot_defaults(), $args),
-    cytobands   =>  read_cytobands($args->{'-genome'}),
-    plotid      =>  (! defined($args->{'-plotid'}) ? 'genomeplot' : $args->{'-plotid'}),
+    parameters  =>  $args,
+    cytobands   =>  read_cytobands($args->{genome}),
+    plotid      =>  $args->{plotid},
     svg         =>  q{},
     Y           =>  0,
   };

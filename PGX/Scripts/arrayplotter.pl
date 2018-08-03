@@ -8,6 +8,11 @@ This is a utility script for plotting positional genome data:
 - segments (segmented log value and b-allele fractions)
 - labels
 
+Examples:
+
+* perl arrayplotter.pl -in ../../in/GSM325151/ -chr2plot 2 -plotregions 2:0-180000000 -markers 2:29332467-29575397:ALK:#ff3300 -factor_probedots 2 -size_text_marker_px 14
+
+
 =cut
 
 # CPAN packages
@@ -50,6 +55,7 @@ $args{'-segfilename'}       ||= $args{'-sfn'}   ||= 'segments,cn.tsv';
 $args{'-fracbprobefilename'}||= $args{'-fbpfn'} ||= 'probes,fracb.tsv';
 $args{'-fracbsegfilename'}  ||= $args{'-fbsfn'} ||= 'segments,fracb.tsv';
 $args{'-defaultsfilename'}  ||= $args{'-dfn'}   ||= 'plotdefaults.yaml';
+$args{'-callsetfilename'}   ||= $args{'-csfn'}   ||= 'callset.json';
 
 $args{'-arraypath'} ||= $args{'-in'}  ||= q{};
 $args{'-arraypath'} =~  s/\/$//;
@@ -133,7 +139,23 @@ foreach my $chro (@$chr2plot) {
   print FILE  $plot->{svg};
   close FILE;
 
+  $plot->plot_segments_add_statusmap();
+
+  # TODO: This just assumes that the last part of the file pathe is the array ID
+  my $arrayName =   $args{'-out'};
+  $arrayName    =~  s/^.*\/?//;
+  my $callset   =   {
+    id          =>  $arrayName,
+    variants    =>  [ grep{ $_->{variant_type} =~ /^D(?:UP)|(?:EL)$/ } @{ $plot->{segmentdata} }],
+    statusmaps  =>  $plot->{statusmaps},
+  };
+
+  open  (FILE, ">", $args{'-out'}.'/'.$args{'-callsetfilename'});
+  print  FILE  JSON::XS->new->encode($callset);
+  close FILE;
+
   $progBar->update($i++);
+  
 }
 
 $progBar->update(scalar @$chr2plot);

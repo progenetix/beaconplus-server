@@ -19,7 +19,7 @@ sub plot_segments_add_statusmap {
 
 =pod
 
-sub "callset_make_statusmap"
+sub "plot_segments_add_statusmap"
 
 The subroutine returns an object containing statusvalues (DUP, DEL) and the (min, max)
 values of the overlapping variants, foreach of the provided @{ $plotPars->{GENOINTVS} } genome intervals.
@@ -52,6 +52,10 @@ maps:
     DUP         =>  'dupmap',
     DEL         =>  'delmap',
   );
+  my %intCoverageLabs   =   (
+    DUP         =>  'dupcoverage',
+    DEL         =>  'delcoverage',
+  );
   my %intValLabs   =   (
     DUP         =>  'dupmax',
     DEL         =>  'delmin',
@@ -59,6 +63,8 @@ maps:
 
   foreach (values %intStatLabs) {
     $maps->{$_} =   [ map{''} 0..$#{ $plot->{genomeintervals} } ] }
+  foreach (values %intCoverageLabs) {
+    $maps->{$_} =   [ map{ 0 } 0..$#{ $plot->{genomeintervals} } ] }
   foreach (values %intValLabs) {
     $maps->{$_} =   [ map{ 0 } 0..$#{ $plot->{genomeintervals} } ] }
 
@@ -79,12 +85,22 @@ maps:
       $csVar->{end}	>=	$plot->{genomeintervals}->[ $_ ]->{start}
     } 0..$#{ $plot->{genomeintervals} }) {
 
+      my $ovEnd     =   (sort { $a <=> $b } ($plot->{genomeintervals}->[ $ind ]->{end},  $csVar->{end}) )[0];
+      my $ovStart   =   (sort { $b <=> $a } ($plot->{genomeintervals}->[ $ind ]->{start},  $csVar->{start}) )[0];
+      my $overlap   =   $ovEnd - $ovStart + 1;
+    
       $maps->{ $intStatLabs{ $csVar->{variant_type } } }->[$ind] = $csVar->{variant_type};
+      $maps->{ $intCoverageLabs{ $csVar->{variant_type } } }->[$ind]  += $overlap;
       push(
         @{ $valueMap->[$ind] },
         $csVar->{info}->{value},
       );
 
+  }}
+  
+  foreach my $cLab (values %intCoverageLabs) {
+    foreach my $ind (grep{ $maps->{$cLab}->[$_] > 0 } 0..$#{ $plot->{genomeintervals} }) {
+      $maps->{$cLab}->[$ind]  =  sprintf "%.3f", $maps->{$cLab}->[$ind] / ($plot->{genomeintervals}->[$ind]->{end} - $plot->{genomeintervals}->[$ind]->{start} + 1);
   }}
 
   # the values for each interval are sorted, to allow extracting the min/max 
@@ -172,6 +188,11 @@ sub cluster_frequencymaps {
   my @matrix    =   ();
   my $labels    =   [];
   my $order     =   [];
+  
+  if ($plot->{parameters}->{cluster_linkage_method} !~ /^[ascm]$/) {
+    $plot->{parameters}->{cluster_linkage_method} = 'm' }
+  if ($plot->{parameters}->{cluster_distance_metric} !~ /^[ecauxskb]$/) {
+    $plot->{parameters}->{cluster_distance_metric} = 'e' }
 
   foreach my $frequencymapsSet (@{ $plot->{frequencymaps} }) {
     push(@{ $labels }, $frequencymapsSet->{name});
@@ -188,8 +209,8 @@ sub cluster_frequencymaps {
 
   my $EisenTree =   Algorithm::Cluster::treecluster(
                       transpose =>  0,
-                      method    =>  'm',
-                      dist      =>  'e',
+                      method    =>  $plot->{parameters}->{cluster_linkage_method},
+                      dist      =>  $plot->{parameters}->{cluster_distance_metric},
                       data      =>  \@matrix,
                     );
   (
@@ -216,6 +237,11 @@ sub cluster_samples {
   my $labels    =   [];
   my $order     =   [];
 
+  if ($plot->{parameters}->{cluster_linkage_method} !~ /^[ascm]$/) {
+    $plot->{parameters}->{cluster_linkage_method} = 'm' }
+  if ($plot->{parameters}->{cluster_distance_metric} !~ /^[ecauxskb]$/) {
+    $plot->{parameters}->{cluster_distance_metric} = 'e' }
+
   my $i         =   0;
   foreach my $sample (@{ $plot->{samples} }) {
     $i++;
@@ -240,8 +266,8 @@ sub cluster_samples {
 
   my $EisenTree =   Algorithm::Cluster::treecluster(
                       transpose =>  0,
-                      method    =>  'm',
-                      dist      =>  'e',
+                      method    =>  $plot->{parameters}->{cluster_linkage_method},
+                      dist      =>  $plot->{parameters}->{cluster_distance_metric},
                       data      =>  \@matrix,
                       mask      =>  [],
                     );
