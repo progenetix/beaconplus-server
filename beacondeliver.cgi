@@ -26,6 +26,13 @@ Please see the associated beaconresponse.md
 
 =cut
 
+
+
+#print 'Content-type: text'."\n\n";
+
+
+
+
 my $tempdb      =   'progenetix';
 my $tmpcoll     =   'querybuffer';
 
@@ -52,6 +59,8 @@ $MongoDB::Cursor::timeout = 120000;
 
 our $tmpdata    =    MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection( $tmpcoll )->find_one( { _id	=>  $access_id } );
 
+#print Dumper($tmpdata);
+#exit;
 _print_histogram();
 _export_callsets();
 _export_biosamples();
@@ -102,7 +111,7 @@ sub _export_callsets {
 
   my $datacoll  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} )->get_collection($tmpdata->{query_coll});
   my $dataQuery =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
-  my $cursor	  =		$datacoll->find( $dataQuery )->fields( { info => 0, _id => 0, updated => 0, created => 0 } );
+  my $cursor	  =		$datacoll->find( $dataQuery )->fields( { _id => 0, updated => 0, created => 0 } );
 
   print	JSON::XS->new->pretty( $pretty )->allow_blessed->convert_blessed->encode([$cursor->all]);
 

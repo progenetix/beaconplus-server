@@ -21,9 +21,13 @@ Please see the associated beaconresponse.md
 
 =cut
 
+
+#print 'Content-type: text'."\n\n";
+
+
+
 if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
 
-# print 'Content-type: text'."\n\n";
 # my @names = param();
 # foreach (@names) {
 #   print Dumper(param($_));
@@ -32,11 +36,11 @@ if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
 # exit;
 
 my $beaconId    =   'progenetix-beacon';
-my $url         =   'http://progenetix.org/beacon/info/';
-my $altUrl      =   'http://arraymap.org/beacon/info/';
-my $logoUrl     =   'http://progenetix.org/p/progenetix.png';
+my $url         =   'https://progenetix.org/beacon/info/';
+my $altUrl      =   'https://arraymap.org/beacon/info/';
+my $logoUrl     =   'https://progenetix.org/p/progenetix.png';
 my $actions     =   [];
-my $apiVersion  =   '0.4';
+my $apiVersion  =   '1.0';
 
 
 
@@ -158,11 +162,14 @@ Atributes not used (yet):
 
   my $qPar      =   {};
 
-  foreach (qw(
-    id
-    bio_characteristics.ontology_terms.term_id
-  )) { $qPar->{$_}      =   [ param('biosamples.'.$_) ] }
+#  foreach (qw(
+#    id
+#    bio_characteristics.ontology_terms.term_id
+#  )) { $qPar->{$_}      =   [ param('biosamples.'.$_) ] }
 
+#  $qPar->{ "id" } = [ param('biosamples.bio_characteristics.ontology_terms.term_id') ];
+  $qPar->{ "biocharacteristics.type.id" } = [ param('biosamples.bio_characteristics.ontology_terms.term_id') ];
+#print Dumper($qPar);
   return $qPar;
 
 }
@@ -318,13 +325,17 @@ sub _createBiosampleQuery {
 
     my @thisQlist;
 
-    foreach (grep{/.../} @{$qPar->{$qKey}}) { push(@thisQlist, {$qKey => qr/(?:^|\:)$_(?:$|\:)/i}) }
-
 =pod
 
+The query elements are treated through regular expressions, with
+    - values being anchored and terminated by either start or end or ':'; this will force complete term matches while disregarding additional prefixes in the data (e.g. "icdom:85003" will match also "pgx:icdom:85003")
+    - case insensitive matches
+    
 Queries with multiple options for the same attribute are treated as logical "OR".
 
 =cut
+
+    foreach (grep{/.../} @{$qPar->{$qKey}}) { push(@thisQlist, { $qKey => qr/(?:^|\:)$_(?:$|\:)/i }) }
 
     if (@thisQlist == 1)    { push(@qList, $thisQlist[0]) }
     elsif (@thisQlist > 1)  { push(@qList, {'$or' => [ @thisQlist ] } ) }
@@ -445,8 +456,9 @@ sub _getDataset {
   my $dataset   =   shift;
   my $counts    =   {};
   my $dbCall    =   {};         # recyclable
-  my $db        =   $dataset.'_ga4gh';
+  my $db        =   $dataset; #.'_ga4gh';
   $db           =~  s/_ga4gh_ga4gh/_ga4gh/;
+  $db           =~  s/arraymap_ga4gh/arraymap/;
   my  $dbconn   =   MongoDB::MongoClient->new()->get_database( $db );
 
 =pod
@@ -618,6 +630,8 @@ message BeaconDatasetAlleleResponse {
     query_coll          =>  $args->{datasetPar}->{callsetcoll},
     query_values        =>  $csVarBioMatchIds,
   };
+  
+#print Dumper($stored_cs->{ query_values });
   MongoDB::MongoClient->new()->get_database( 'progenetix' )->get_collection( 'querybuffer' )->insert($stored_cs);
 
   if ($dataset =~ /dgv/i) {
@@ -636,7 +650,7 @@ message BeaconDatasetAlleleResponse {
 
   ##############################################################################
 
-  my $bsPhenotypeResponse       =   [];
+  my $bsPhenotypeResponse   =   [];
 
   if ($args->{procPar}->{phenotypes} > 0) {
 
