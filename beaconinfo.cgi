@@ -42,12 +42,13 @@ if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
 if (param('q') =~ /get_datasetids/i) {
 
   my $beaconInfo    =   {};
-  foreach my $db (grep{ /_ga4gh/ } $dbClient->database_names()) {
+#  foreach my $db (grep{ /_ga4gh/ } $dbClient->database_names()) {
+  foreach my $db (qw(progenetix arraymap)) {
 
     my $datasetId       =   $db;
     $datasetId          =~  s/_ga4gh$//i;
 
-    if ($datasetId =~ /progenetix/i) { next }
+#    if ($datasetId =~ /progenetix/i) { next }
 
     push(@{ $beaconInfo->{dataset} }, {datasetId => $datasetId});
 
@@ -70,7 +71,8 @@ my $beaconInfo  =   {
 
 my %allRefs;
 
-foreach my $db (grep{ /_ga4gh/ } $dbClient->database_names()) {
+#foreach my $db (grep{ /_ga4gh/ } $dbClient->database_names()) {
+foreach my $db (qw(progenetix arraymap)) {
 
   my $datasetId =   $db;
   $datasetId    =~  s/_ga4gh$//i;
@@ -106,7 +108,7 @@ foreach my $db (grep{ /_ga4gh/ } $dbClient->database_names()) {
 
   my $dbCall    =   $dbconn->run_command([
                       "distinct"=>  "biosamples",
-                      "key"     =>  'bio_characteristics.ontology_terms.term_id',
+                      "key"     =>  'biocharacteristics.type.id',
                       "query"   =>  {},
                     ]);
 
