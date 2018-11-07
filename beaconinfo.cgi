@@ -1,137 +1,115 @@
 #!/usr/bin/perl
 
-# Progenetix & arrayMap site scripts
-# © 2000-2017 Michael Baudis: m@baud.is
+# © 2000-2018 Michael Baudis: m@baud.is
 
 use strict;
 use CGI::Carp qw(fatalsToBrowser);
 use CGI qw(param);
 
+use File::Basename;
 use JSON;
-use List::Util qw(sum);
 use MongoDB;
 use MongoDB::MongoClient;
 use Data::Dumper;
+
+use YAML::XS qw(LoadFile);
+
+my $here_path   =   File::Basename::dirname( eval { ( caller() )[1] } );
+our $config     =   LoadFile($here_path.'/rsrc/config.yaml') or die print 'Content-type: text'."\n\n¡No config.yaml file in this path!";
+
+my $querytype   =   param('querytype');
+my $datasets    =   [ param('dataset_ids') ];
+
+if ($datasets->[0] =~ /\w\w\w/) {
+  $config->{ dataset_names }  =   [];
+  foreach (grep{ /\w\w\w/ } @$datasets) {
+    push(@{ $config->{ dataset_names } }, $_);
+  }
+}
+
+if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
+
+if ($querytype =~ /get_datasetids/) {
+
+  print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->encode($config->{ dataset_names })."\n";
+
+  exit;
+
+}
 
 =pod
 
 Please see the associated beaconresponse.md
 =cut
 
-my $beaconId    =   'progenetix-beacon';
-my $url         =   'http://progenetix.org/beacon/info/';
-my $altUrl      =   'http://arraymap.org/beacon/info/';
-my $logoUrl     =   'http://progenetix.org/p/progenetix.png';
-my $actions     =   [];
-my $provider    =   [
-  'Michael Baudis',
-  'Theoretical Cytogenetics and Oncogenomics, Department of Molecular Life Sciences, University of Zurich',
-  'http://www.imls.uzh.ch/en/research/baudis.html',
-  'http://wiki.progenetix.org/Wiki/BaudisgroupIMLS/MichaelBaudis',
-  'Swiss Institute of Bioinformatics - SIB',
-  'http://www.sib.swiss/baudis-michael',
-];
-my $description =   'A forward looking implementation for Beacon+ development, with focus on structural variants and metadata. For more information, please visit https://github.com/progenetix/arraymap2ga4gh/blob/master/tools/beaconresponse.md';
-
-
 my $dbClient    =   MongoDB::MongoClient->new();
-my @dbList;
+my @dbList      =   $dbClient->database_names();
 
-if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
-
-if (param('q') =~ /get_datasetids/i) {
-
-  my $beaconInfo    =   {};
-#  foreach my $db (grep{ /_ga4gh/ } $dbClient->database_names()) {
-  foreach my $db (qw(progenetix arraymap)) {
-
-    my $datasetId       =   $db;
-    $datasetId          =~  s/_ga4gh$//i;
-
-#    if ($datasetId =~ /progenetix/i) { next }
-
-    push(@{ $beaconInfo->{dataset} }, {datasetId => $datasetId});
-
-  }
-  print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->encode($beaconInfo)."\n";
-  exit;
-
-}
 
 my $beaconInfo  =   {
-  beaconId      =>  $beaconId,
-  provider      =>  $provider,
-  description   =>  $description,
-  url           =>  $url,
-  sameAs        =>  $altUrl,
-  logo          =>  $logoUrl,
-  potentialActions      =>  $actions,
+  beaconId      =>  $config->{ beacon_id },
+  provider      =>  $config->{ provider },
+  description   =>  $config->{ description },
+  url           =>  $config->{ url },
+  sameAs        =>  $config->{ url_alt },
+  logo          =>  $config->{ url_logo },
+  potentialActions   =>  $config->{ actions },
   dataset       =>  [],
 };
 
-my %allRefs;
+my %ontologyIds;
+my $biosQ       =   {};
+my $querytext;
+my $queryregex;
 
-#foreach my $db (grep{ /_ga4gh/ } $dbClient->database_names()) {
-foreach my $db (qw(progenetix arraymap)) {
+if (param( 'querytext')) {
+  $querytext    =   param( 'querytext');
+  $queryregex   =   qr/$querytext/i;
+  $biosQ        =   { "id" => { '$regex' => $queryregex } } }
 
-  my $datasetId =   $db;
-  $datasetId    =~  s/_ga4gh$//i;
-  my %datasetRefs;
-  my $dbconn    =   $dbClient->get_database( $db );
-  my @collList  =   grep{ ! /system/ } $dbconn->collection_names();
-  my $collInfos =   [];
-  my $varNo     =   0;
-#  my $callNo    =   0;
+#print Dumper($biosQ);
 
-  if (! grep{/variants/} @collList) { next }
+foreach my $datasetId ( @{ $config->{ dataset_names }}) {
 
-  push (@dbList, $db);
+  if (! grep{ /$datasetId/ } @dbList) { next }
 
-  foreach (@collList) {
+  my $dbconn    =   $dbClient->get_database( $datasetId );
 
-    my $docNo   =   $dbconn->get_collection($_)->count;
-    push(
-      @$collInfos,
-      { $_ => { count => $docNo } },
-    );
+  my $datasetI  =       {
+    identifier  => 'org.progenetix:'.$config->{ beacon_id }.':'.$datasetId,
+    datasetId   => $datasetId,
+    name        => $datasetId,
+  };
 
-    if ( $_ =~ /^*._(((grch)|(hg))\d\d)$/i ) {
-      $allRefs{$1}      =   1;
-      $datasetRefs{$1}  =   1;
-    }
-
-    if ( $_ =~ /variants/i ) { $varNo += $docNo }
-
+  foreach my $coll (@{ $config->{ collection_names } }) {
+    $datasetI->{ $coll.'_count' } =   $dbconn->get_collection($coll)->count;
   }
 
   ##############################################################################
 
-  my $dbCall    =   $dbconn->run_command([
-                      "distinct"=>  "biosamples",
-                      "key"     =>  'biocharacteristics.type.id',
-                      "query"   =>  {},
-                    ]);
+  my $cursor    =   $dbconn->get_collection('biosubsets')->find( $biosQ )->fields({ id => 1, label => 1, count => 1});
+  foreach ($cursor->all) {
+    $ontologyIds{ $_->{id} } = $_->{id}.': '.$_->{label};
+    if (@{ $config->{ dataset_names }} == 1) {
+      $ontologyIds{ $_->{id} } .= ' ('.$_->{count}.')';
+    }
+  }
 
-  my $bsOntologyTermIds =   $dbCall->{values};
+  $datasetI->{ info }->{ ontology_terms } =   [ map{ { $_ => $ontologyIds{ $_ } } } sort keys %ontologyIds ];
 
   ##############################################################################
 
   push(
     @{ $beaconInfo->{dataset} },
-    {
-      identifier        => 'org.progenetix:'.$beaconId.':'.$datasetId,
-      datasetId         => $datasetId,
-      name              => $datasetId,
-      info              => { collections => $collInfos, ontology_terms => $bsOntologyTermIds },
-      assembly_id        => [ keys %datasetRefs ],
-      variantCount      => $varNo,
-#      callCount         => $callNo,
-    }
+    $datasetI
   );
 
 }
 
-$beaconInfo->{supportedRefs}    =   [ keys %allRefs ];
+$beaconInfo->{supportedRefs}  =   $config->{ genome_assemblies };
+
+if ($querytype =~ /ontologyid/) {
+  $beaconInfo  =   [ map{ { id => $_, infolabel => $ontologyIds{$_} } } sort keys %ontologyIds ] }
 
 print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->encode($beaconInfo)."\n";
 

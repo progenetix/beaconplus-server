@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 # Beacon+ support scripts
-# © 2017 Michael Baudis: m@baud.is
+# © 2017-20018 Michael Baudis: m@baud.is
 
 use strict;
 use CGI::Carp qw(fatalsToBrowser);
@@ -31,8 +31,6 @@ Please see the associated beaconresponse.md
 #print 'Content-type: text'."\n\n";
 
 
-
-
 my $tempdb      =   'progenetix';
 my $tmpcoll     =   'querybuffer';
 
@@ -59,7 +57,7 @@ $MongoDB::Cursor::timeout = 120000;
 
 our $tmpdata    =    MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection( $tmpcoll )->find_one( { _id	=>  $access_id } );
 
-#print Dumper($tmpdata);
+#print Dumper($access_id, $tmpdata);
 #exit;
 _print_histogram();
 _export_callsets();
@@ -150,8 +148,11 @@ sub _export_variants {
   print 'Content-type: application/json'."\n\n";
 
   my $dataconn  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} );
-  my $datacoll  =   $dataconn->get_collection('variants');
-  my $cursor	  =		$datacoll->find( { callset_id => { '$in' => $tmpdata->{query_values} } } )->fields( { attributes => 0, _id => 0, updated => 0, created => 0 } );
+  my $datacoll  =   $dataconn->get_collection( $tmpdata->{query_coll} );
+  my $cursor    =   {};
+  
+  # there are 2 response types: The first 
+  $cursor	    =		$datacoll->find( { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } } )->fields( { _id => 0, updated => 0, created => 0 } );
 
   print	JSON::XS->new->pretty( $pretty )->allow_blessed->convert_blessed->encode([$cursor->all]);
 

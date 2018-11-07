@@ -1,0 +1,31 @@
+#
+---
+api_version: '1.0'
+change_date: '2018-10-10'
+beacon_id: 'progenetix-beacon'
+description: |
+  A forward looking implementation for Beacon+ development, with focus on structural variants and metadata.
+provider:
+  - 'Michael Baudis'
+  - 'Theoretical Cytogenetics and Oncogenomics, Department of Molecular Life Sciences, University of Zurich'
+  - 'http://www.imls.uzh.ch/en/research/baudis.html'
+  - 'http://info.baudisgroup.org/'
+  - 'Swiss Institute of Bioinformatics - SIB'
+  - 'http://www.sib.swiss/baudis-michael'
+dataset_names:
+  - arraymap
+  - progenetix
+  - tcga
+collection_names:
+  - variants
+  - callsets
+  - biosamples
+  - individuals
+genome_assemblies:
+  - 'GRCh38'
+url: 'https://beacon.progenetix.org/beacon/info/'
+url_base: 'https://beacon.progenetix.org'
+url_alt: 'https://beacon.arraymap.org/beacon/info/'
+url_logo: 'https://progenetix.org/p/progenetix.png'
+actions:
+  - handover

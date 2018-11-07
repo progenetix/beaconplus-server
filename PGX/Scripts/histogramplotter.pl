@@ -87,17 +87,17 @@ END
 
 # biosamples query
 
-$cursor     =   $dbconn->get_collection('biosamples')->find( $args{'-biosquery'} )->fields( { id => 1, 'bio_characteristics.ontology_terms' => 1, info => 1 } );
+$cursor     =   $dbconn->get_collection('biosamples')->find( $args{'-biosquery'} )->fields( { id => 1, 'biocharacteristics.type' => 1, info => 1 } );
 my $biosamples =   [ $cursor->all ];
 if ($args{'-randno'} > 0) {
   $biosamples =   [ (shuffle(@$biosamples))[0..($args{'-randno'}-1)] ] }
 
 for my $i (0..$#{ $biosamples }) {
-  my @icdm      =  grep{ $_->{term_id} =~ /icdom/ } @{ $biosamples->[$i]->{bio_characteristics}->[0]->{ontology_terms} };
-  $biosamples->[$i]->{term_id}     =   $icdm[0]->{term_id};
-  $biosamples->[$i]->{term_label}  =   $icdm[0]->{term_label};
-  delete $biosamples->[$i]->{bio_characteristics};
-  print Dumper($biosamples->[$i]->{id}, $biosamples->[$i]->{term_id}, $biosamples->[$i]->{term_label})."\n";
+  my @icdm      =  grep{ $_->{id} =~ /icdom/ } @{ $biosamples->[$i]->{biocharacteristics}->[0]->{type} };
+  $biosamples->[$i]->{id}     =   $icdm[0]->{id};
+  $biosamples->[$i]->{label}  =   $icdm[0]->{label};
+  delete $biosamples->[$i]->{biocharacteristics};
+  print Dumper($biosamples->[$i]->{id}, $biosamples->[$i]->{id}, $biosamples->[$i]->{label})."\n";
 }
 
 #my $samleMap    =   { map{ $_}}

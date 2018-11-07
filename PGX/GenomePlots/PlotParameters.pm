@@ -19,7 +19,7 @@ sub read_plot_defaults {
 
   use File::Basename;
   my $path_of_this_module = File::Basename::dirname( eval { ( caller() )[1] } );
-  my $plotPars  =   LoadFile($path_of_this_module.'/../rsrc/config/plotdefaults.yaml');
+  my $plotPars  =   LoadFile($path_of_this_module.'/../config/plotdefaults.yaml');
   return  $plotPars;
 
 }
