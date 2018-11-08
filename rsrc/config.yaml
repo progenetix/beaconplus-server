@@ -17,10 +17,10 @@ dataset_names:
   - progenetix
   - tcga
 collection_names:
-  - variants
-  - callsets
-  - biosamples
-  - individuals
+  callset_collection: callsets
+  variant_collection: variants
+  biosample_collection: biosamples
+  individual_collection: individuals
 genome_assemblies:
   - 'GRCh38'
 url: 'https://beacon.progenetix.org/beacon/info/'

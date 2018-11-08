@@ -45,7 +45,6 @@ Please see the associated beaconresponse.md
 my $dbClient    =   MongoDB::MongoClient->new();
 my @dbList      =   $dbClient->database_names();
 
-
 my $beaconInfo  =   {
   beaconId      =>  $config->{ beacon_id },
   provider      =>  $config->{ provider },
@@ -81,7 +80,7 @@ foreach my $datasetId ( @{ $config->{ dataset_names }}) {
     name        => $datasetId,
   };
 
-  foreach my $coll (@{ $config->{ collection_names } }) {
+  foreach my $coll (values %{ $config->{ collection_names } }) {
     $datasetI->{ $coll.'_count' } =   $dbconn->get_collection($coll)->count;
   }
 

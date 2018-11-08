@@ -1,0 +1,46 @@
+---
+variant_params:
+  reference_name:
+    name: referenceName
+    pattern: '^\w+?$'
+  mate_name:
+    name: mateName
+    pattern: '^\w+?$'
+  reference_bases:
+    name: referenceBases
+    pattern: '^\w+?$'
+  alternate_bases:
+    name: alternateBases
+    pattern: '^\w+?$'
+  variant_type:
+    name: variantType
+    pattern: '^\w+?$'
+  start:
+    name: start
+    pattern: '^\d+?$'
+    type: integer
+  end:
+    name: end
+    pattern: '^\d+?$'
+    type: integer
+  start_min:
+    name: startMin
+    pattern: '^\d+?$'
+    type: integer
+  start_max:
+    name: startMax
+    pattern: '^\d+?$'
+    type: integer
+  end_min:
+    name: endMin
+    pattern: '^\d+?$'
+    type: integer
+  end_max:
+    name: endMax
+    pattern: '^\d+?$'
+    type: integer
+biosample_params:
+  biocharacteristics.type.id:
+    name: 'biosamples.biocharacteristics.type.id'
+    pattern: '^\w+[\:$](?:\w+?)?'
+    type: array

@@ -18,9 +18,9 @@ require Exporter;
 sub read_plot_defaults {
 
   use File::Basename;
-  my $path_of_this_module = File::Basename::dirname( eval { ( caller() )[1] } );
-  my $plotPars  =   LoadFile($path_of_this_module.'/../config/plotdefaults.yaml');
-  return  $plotPars;
+
+  my $here_path =   File::Basename::dirname( eval { ( caller() )[1] } );
+  return  LoadFile($here_path.'/../config/plotdefaults.yaml');
 
 }
 
