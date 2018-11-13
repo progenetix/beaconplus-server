@@ -195,22 +195,26 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
   if ($ENV{SERVER_NAME} =~ /test/) { $config->{url_base} =  'http://'.$ENV{SERVER_NAME}}
   push(
     @$handover,
-    {
+    { 
+      id        =>  'CUSTOM',
       note      =>  'create CNV histogram from matched callsets',
       url       =>  $config->{url_base}.'/beaconplus-server/beacondeliver.cgi?do=histogram&accessid='.$prefetch->{handover}->{$csids_from_variants}->{_id},
       label     =>  'CNV Histogram'
     },
     {
+      id        =>  'CUSTOM',
       note      =>  'export all biosample data of matched callsets',
       url       =>  $config->{url_base}.'/beaconplus-server/beacondeliver.cgi?do=biosamples&accessid='.$prefetch->{handover}->{$biosids_from_callsets}->{_id},
       label     =>  'Biosamples Data'
     },
     {
+      id        =>  'CUSTOM',
       note      =>  'export all variants of matched callsets',
       url       =>  $config->{url_base}.'/beaconplus-server/beacondeliver.cgi?do=csvariants&accessid='.$prefetch->{handover}->{$csids_from_variants}->{_id},
       label     =>  'Callset Variants'
     },
     {
+      id        =>  'CUSTOM',
       note      =>  'retrieve matching variants',
       url       =>  $config->{url_base}.'/beaconplus-server/beacondeliver.cgi?do=variants&accessid='.$prefetch->{handover}->{$varids_from_variants}->{_id},
       label     =>  'Matching Variants'
