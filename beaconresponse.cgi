@@ -11,9 +11,13 @@ use CGI qw(param);
 use File::Basename;
 use JSON;
 use MongoDB;
+use MongoDB::MongoClient;
+
 use Data::Dumper;
-use UUID::Tiny;
 use YAML::XS qw(LoadFile);
+
+use beaconPlus::QueryParameters;
+use beaconPlus::QueryExecution;
 
 my $here_path   =   File::Basename::dirname( eval { ( caller() )[1] } );
 our $config     =   LoadFile($here_path.'/rsrc/config.yaml') or die print 'Content-type: text'."\n\n¡No config.yaml file in this path!";
@@ -36,12 +40,10 @@ bless $args;
 
 $args->{datasetPar} =   _getDatasetParams();
 
-use beaconPlus::QueryParameters;
-my $query       =   beaconPlus::QueryParameters->new();
+my $query       =   beaconPlus::QueryParameters->new($config);
 
 # catching some input errors ###################################################
 # TODO: expand ...
-$args->{varErrM}    =   _checkVarParams($query->{variant_params});
 $args->{biosErrM}   =   _checkBiosParams($query->{biosample_params});
 $args->{queryScope} =   'datasetAlleleResponses';
 $args->{queryType}  =   'alleleRequest';
@@ -97,26 +99,6 @@ sub _getDatasetParams {
 
 ################################################################################
 
-sub _checkVarParams {
-
-  my $qPar      =   $_[0];
-  my $errorM;
-
-  if ( $qPar->{variant_type} =~ /^(?:UP)|(?:EL)$/ && ( $qPar->{start_range}->[0] !~ /^\d+?$/ || $qPar->{end_range}->[0] !~ /^\d+?$/ ) ) {
-    $errorM     .=    '"startMin" (and also startMax) or "endMin" (and also endMax) did not contain a numeric value - both are required for DUP & DEL. ' }
-  if ( $qPar->{variant_type} =~ /^BND$/ && ( $qPar->{start_range}->[0] !~ /^\d+?$/ && $qPar->{end_range}->[0] !~ /^\d+?$/ ) ) {
-    $errorM     .=    'Neither "startMin" (and also startMax) or "endMin" (and also endMax) did contain a numeric value - one range is required for BND. ' }
-  if ($qPar->{reference_name} !~ /^(?:(?:(?:1|2)?\d)|x|y)$/i) {
-    $errorM     .=    '"variants.reference_name" did not contain a valid value (e.g. "chr17" "8", "X"). ' }
-  if ( $qPar->{variant_type} !~ /^(?:DUP)|(?:DEL)|(?:BND)$/ && $qPar->{alternate_bases} !~ /^[ATGC]+?$/ ) {
-    $errorM     .=    'There was no valid value for either "alternateBases or variantType". ' }
-
-  return $errorM;
-
-}
-
-################################################################################
-
 sub _checkBiosParams {
 
   my $qPar      =   $_[0];
@@ -156,129 +138,131 @@ sub _getDataset {
 
   my $args      =   shift;
   my $dataset   =   shift;
-  my $counts    =   {};
+  my $counts    =   {
+    variant_count   => 0,
+    call_count      => 0,
+    sample_count    => 0,
+    frequency       => 0,
+  };
   my $dbCall    =   {}; 
   my $db        =   $dataset;
-  my $dbconn    =   MongoDB::MongoClient->new()->get_database( $db );
-
-  $counts->{variant_count}  =   0;
-  $counts->{call_count}     =   0;
-  $counts->{frequency}      =   0;
-  $counts->{sample_count}   =   0;
+  my $dbconn    =   MongoDB::MongoClient->new()->get_database( $dataset );
 
   my $bsBioMatchIds     =   []; # biosample ids matching the biosample_Request
   my $csVarBioMatchIds  =   []; # callset ids with varant_query and biosample_query match
 
-  my $biosBaseNo;
-  my $callBaseNo        =   0;
-  my $varBaseQ          =   {};
-  my $handover          =   [];
-
-  my $cursor;
-  my $vars;
 
   my $biosAllNo =   $dbconn->get_collection( $config->{collection_names}->{biosample_collection} )->find()->count();
+  my $biosBaseNo    =   $biosAllNo;
 
+  ##############################################################################
+  
+  # Handover:
+  my ($prefetch, $buffered);
+  my $handover  =   [];
+ 
+=pod
+
+Different types of query are run, if parameters for them exist.
+
+The current concept is:
+
+- run queries on the different primary object types (individual, biosample, callset, variant)
+- provide the object-level counts as output (and store the ids for handover procedures)
+- aggregate on biosamples
+
+### Variant query
+
+### Callset query
+
+This is just an aggregator, since callsets are currently just wrapper objects (experiments delivering sets of variants).
+
+### Biosample query
+
+### Individual query
+
+- e.g. species, sex ...
+
+=cut
+    
+  
+  # while not strictly necessary, here the method keys are created as named 
+  # variables - just for readability
+  my $varids_from_variants      =   'variants::_id';
+  my $vardigests_from_variants  =   'variants::digest';
+  my $csids_from_variants       =   'variants::callset_id::callsets::id';
+  my $biosids_from_callsets     =   'callsets::biosample_id::biosamples::id';
+  my $biosids_from_biosamples   =   'biosamples::id';
+  
+  $prefetch     =   beaconPlus::QueryExecution->new($config);
+  $prefetch->{dataset}  =   $dataset; 
+  
   if (grep{ /.../ } keys %{ $query->{biosample_query} } ) {
-
-    my $distincts   =   $dbconn->run_command([
-                          "distinct"=>  $config->{collection_names}->{biosample_collection},
-                          "key"     =>  'id',
-                          "query"   =>  $query->{biosample_query},
-                        ]);
-    $bsBioMatchIds  =   $distincts->{values};
-    $biosBaseNo     =   @$bsBioMatchIds;
-
+    $prefetch->create_handover_object(
+      $biosids_from_biosamples,
+      $query->{biosample_query}, 
+    ); 
+    $biosBaseNo     =   $prefetch->{handover}->{$biosids_from_biosamples}->{target_count};
     $query->{variant_query}  =   { '$and' =>
       [
         $query->{variant_query},
-        { biosample_id => { '$in' =>  $bsBioMatchIds } },
+        { 'biosample_id' => { '$in' =>  $prefetch->{handover}->{$biosids_from_biosamples}->{target_values} } },
       ],
     };
-
   }
-  else {
-    $biosBaseNo =   $biosAllNo }
 
-  ##############################################################################
+  $prefetch->create_handover_object(
+    $varids_from_variants,
+    $query->{variant_query}, 
+  ); 
 
-  my $varFields =   {
-    digest          => 1,
-    callset_id      => 1,
-    biosample_id    => 1,
-  };
+  $prefetch->create_handover_object(
+    $csids_from_variants,
+    { '_id' => { '$in' => $prefetch->{handover}->{$varids_from_variants}->{target_values} } }, 
+  ); 
+  
+  $prefetch->create_handover_object(
+    $biosids_from_callsets,
+    { "id" => { '$in' => $prefetch->{handover}->{$csids_from_variants}->{target_values} } },
+  ); 
 
-  # retrieving all matching variants
-  $cursor       =    $dbconn->get_collection( $config->{collection_names}->{variant_collection} )->find( $query->{variant_query} )->fields( $varFields );
-  $vars         =    [ $cursor->all ];
+  $prefetch->create_handover_object(
+    $vardigests_from_variants,
+    { "callset_id" => { '$in' => $prefetch->{handover}->{$csids_from_variants}->{target_values} } },
+  ); 
 
-  my %csVarMatches  =   map{ $_->{callset_id} => 1 } @$vars;
-  my %bsVarMatches  =   map{ $_->{biosample_id} => 1 } @$vars;
-  my %distVars      =   map{ $_->{digest} => 1 } @$vars;
-
-  $counts->{variant_count}  =   scalar keys %distVars;
+  $counts->{variant_count}  =   $prefetch->{handover}->{$vardigests_from_variants}->{target_count};
   if ($counts->{variant_count} > 0) { $counts->{'exists'} = \1 }
 
-  $csVarBioMatchIds =   [ keys %csVarMatches ];
-  $counts->{call_count}   =   scalar @$csVarBioMatchIds;
-  $counts->{sample_count} =   keys %bsVarMatches;
-
+  $counts->{call_count}   =   $prefetch->{handover}->{$csids_from_variants}->{target_count};
+  $counts->{sample_count} =    $prefetch->{handover}->{$biosids_from_callsets}->{target_count};
   if ($biosBaseNo > 0) {
     $counts->{frequency}  =   sprintf "%.4f",  $counts->{sample_count} / $biosBaseNo }
 
   ##############################################################################
-
-  # storing callset ids for retrieval
-  $args->{access_id}    =   create_UUID_as_string();
-  my $stored_cs =   {
-    _id                 =>  $args->{access_id},
-    query_key           =>  'id',
-    query_db            =>  $db,
-    query_coll          =>  $config->{collection_names}->{callset_collection},
-    query_values        =>  $csVarBioMatchIds,
-  };
-
-  MongoDB::MongoClient->new()->get_database( 'progenetix' )->get_collection( 'querybuffer' )->insert($stored_cs);
   
+  if ($ENV{SERVER_NAME} =~ /test/) { $config->{url_base} =  'http://'.$ENV{SERVER_NAME}}
   push(
     @$handover,
     {
       note      =>  'create CNV histogram from matched callsets',
-      url       =>  $config->{url_base}.'/beaconplus-server/beacondeliver.cgi?do=histogram&accessid='.$args->{access_id},
-      label     =>  'Histogram'
+      url       =>  $config->{url_base}.'/beaconplus-server/beacondeliver.cgi?do=histogram&accessid='.$prefetch->{handover}->{$csids_from_variants}->{_id},
+      label     =>  'CNV Histogram'
     },
     {
       note      =>  'export all biosample data of matched callsets',
-      url       =>  $config->{url_base}.'/beaconplus-server/beacondeliver.cgi?do=biosamples&accessid='.$args->{access_id},
-      label     =>  'Biosamples'
+      url       =>  $config->{url_base}.'/beaconplus-server/beacondeliver.cgi?do=biosamples&accessid='.$prefetch->{handover}->{$biosids_from_callsets}->{_id},
+      label     =>  'Biosamples Data'
     },
     {
       note      =>  'export all variants of matched callsets',
-      url       =>  $config->{url_base}.'/beaconplus-server/beacondeliver.cgi?do=variants&accessid='.$args->{access_id},
-      label     =>  'Callsets'
-    }
-  );
-
-  ##############################################################################
-
-  # storing variant ids for retrieval
-  $args->{varaccess_id} =   create_UUID_as_string();
-  my $stored_vars  =   {
-    _id                 =>  $args->{varaccess_id},
-    query_key           =>  'digest',
-    query_db            =>  $db,
-    query_coll          =>  $config->{collection_names}->{variant_collection},
-    query_values        =>  [ keys %distVars ],
-  };
-
-  MongoDB::MongoClient->new()->get_database( 'progenetix' )->get_collection( 'querybuffer' )->insert($stored_vars);
-
-  push(
-    @$handover,
+      url       =>  $config->{url_base}.'/beaconplus-server/beacondeliver.cgi?do=variants&accessid='.$prefetch->{handover}->{$vardigests_from_variants}->{_id},
+      label     =>  'Callset Variants'
+    },
     {
       note      =>  'retrieve matching variants',
-      url       =>  $config->{url_base}.'/beaconplus-server/beacondeliver.cgi?do=variants&accessid='.$args->{varaccess_id},
-      label     =>  'Variants'
+      url       =>  $config->{url_base}.'/beaconplus-server/beacondeliver.cgi?do=variants&accessid='.$prefetch->{handover}->{$varids_from_variants}->{_id},
+      label     =>  'Matching Variants'
     }
   );
 
@@ -289,7 +273,7 @@ sub _getDataset {
   return  {
     datasetId   =>  $dataset,
     "exists"    =>  $counts->{"exists"},
-    error       =>  $args->{varErrM}.$args->{biosErrM},
+    error       =>  $query->{query_errors},
     frequency   =>  $counts->{frequency} * 1,
     variantCount    =>  $counts->{variant_count} * 1,
     callCount   =>  $counts->{call_count} * 1,

@@ -29,3 +29,5 @@ url_alt: 'https://beacon.arraymap.org/beacon/info/'
 url_logo: 'https://progenetix.org/p/progenetix.png'
 actions:
   - handover
+handover_db: progenetix
+handover_coll: querybuffer

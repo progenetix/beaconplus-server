@@ -11,7 +11,7 @@ use JSON;
 use MongoDB;
 use MongoDB::MongoClient;
 use Data::Dumper;
-use UUID::Tiny;
+use YAML::XS qw(LoadFile);
 
 # local packages
 use PGX::GenomeIntervals::IntervalStatistics;
@@ -26,15 +26,10 @@ Please see the associated beaconresponse.md
 
 =cut
 
-
+my $here_path   =   File::Basename::dirname( eval { ( caller() )[1] } );
+our $config     =   LoadFile($here_path.'/rsrc/config.yaml') or die print 'Content-type: text'."\n\n¡No config.yaml file in this path!";
 
 #print 'Content-type: text'."\n\n";
-
-
-my $tempdb      =   'progenetix';
-my $tmpcoll     =   'querybuffer';
-
-#if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
 
 # parameters
 my $access_id   =   param('accessid');
@@ -55,9 +50,8 @@ if ($pretty !~ /^1|y/) {
 
 $MongoDB::Cursor::timeout = 120000;
 
-our $tmpdata    =    MongoDB::MongoClient->new()->get_database( $tempdb )->get_collection( $tmpcoll )->find_one( { _id	=>  $access_id } );
-
-#print Dumper($access_id, $tmpdata);
+our $handover   =    MongoDB::MongoClient->new()->get_database( $config->{handover_db} )->get_collection( $config->{handover_coll} )->find_one( { _id	=>  $access_id } );
+#print Dumper($handover);
 #exit;
 _print_histogram();
 _export_callsets();
@@ -73,14 +67,11 @@ sub _print_histogram {
   if ($todo !~ /histo/i) { return }
 
   my $args      =   {};
-  $args->{'-genome'}    =   'grch38';
-  $args->{'-binning'}   =   1000000;
   $args->{'-plotid'}    =   'histoplot';
   $args->{'-do_plottype'}   =   'histogram';
-  $args->{'-chr2plot'}  =   '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,X';
 
-  my $datacoll  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} )->get_collection($tmpdata->{query_coll});
-  my $dataQuery =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
+  my $datacoll  =   MongoDB::MongoClient->new()->get_database( $handover->{source_db} )->get_collection( $handover->{target_collection} );
+  my $dataQuery =   { $handover->{target_key} => { '$in' => $handover->{target_values} } };
   my $cursor	  =		$datacoll->find( $dataQuery )->fields( { 'info' => 1 } );
   my $callsets	=		[ $cursor->all ];
 
@@ -107,8 +98,8 @@ sub _export_callsets {
 
   print 'Content-type: application/json'."\n\n";
 
-  my $datacoll  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} )->get_collection($tmpdata->{query_coll});
-  my $dataQuery =   { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } };
+  my $datacoll  =   MongoDB::MongoClient->new()->get_database( $handover->{source_db} )->get_collection( $handover->{target_collection} );
+  my $dataQuery =   { 'id' => { '$in' => $handover->{query_values} } };
   my $cursor	  =		$datacoll->find( $dataQuery )->fields( { _id => 0, updated => 0, created => 0 } );
 
   print	JSON::XS->new->pretty( $pretty )->allow_blessed->convert_blessed->encode([$cursor->all]);
@@ -123,17 +114,10 @@ sub _export_biosamples {
 
   print 'Content-type: application/json'."\n\n";
 
-  my $dataconn  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} );
+  my $dataconn  =   MongoDB::MongoClient->new()->get_database( $handover->{source_db} );
   
-  # for biosamples, first the biosample ids have to be retrieved from callsets
-  my $datacall  =   $dataconn->run_command([
-                      "distinct"=>  $tmpdata->{query_coll},
-                      "key"     =>  'biosample_id',
-                      "query"   =>  { id => { '$in' => $tmpdata->{query_values} } },
-                    ]);
-  my $biosids   =   $datacall->{values};
-  my $datacoll  =   $dataconn->get_collection('biosamples');
-  my $cursor	  =		$datacoll->find( { id => { '$in' => $biosids } } )->fields( { attributes => 0, _id => 0, updated => 0, created => 0 } );
+  my $datacoll  =   $dataconn->get_collection($handover->{target_collection});
+  my $cursor	  =		$datacoll->find( { $handover->{target_key} => { '$in' => $handover->{target_values} } } )->fields( { attributes => 0, _id => 0, updated => 0, created => 0 } );
 
   print	JSON::XS->new->pretty( $pretty )->allow_blessed->convert_blessed->encode([$cursor->all]);
 
@@ -144,15 +128,13 @@ sub _export_biosamples {
 sub _export_variants {
 
   if ($todo !~ /variants/i) { return }
-
   print 'Content-type: application/json'."\n\n";
 
-  my $dataconn  =   MongoDB::MongoClient->new()->get_database( $tmpdata->{query_db} );
-  my $datacoll  =   $dataconn->get_collection( $tmpdata->{query_coll} );
+  my $dataconn  =   MongoDB::MongoClient->new()->get_database( $handover->{source_db} );
+  my $datacoll  =   $dataconn->get_collection( 'variants' );
   my $cursor    =   {};
-  
-  # there are 2 response types: The first 
-  $cursor	    =		$datacoll->find( { $tmpdata->{query_key} => { '$in' => $tmpdata->{query_values} } } )->fields( { _id => 0, updated => 0, created => 0 } );
+
+  $cursor	      =		$datacoll->find( { $handover->{target_key} => { '$in' => $handover->{target_values} } } )->fields( { _id => 0, updated => 0, created => 0 } );
 
   print	JSON::XS->new->pretty( $pretty )->allow_blessed->convert_blessed->encode([$cursor->all]);
 

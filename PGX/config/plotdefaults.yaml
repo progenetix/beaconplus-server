@@ -109,10 +109,10 @@ size_text_subtitle_px: 14
 size_text_title_left_px: 14
 size_text_lab_px: 8
 size_text_marker_px: 9
-size_plotarea_h_px: 140
+size_plotarea_h_px: 120
 size_strip_h_px: 7
 size_plotarea_padding: 3
-size_plotimage_w_px: 1600
+size_plotimage_w_px: 1024
 size_fracbarea_h_px: 100
 size_label_y_w_px: 25
 size_label_right_px: 0
