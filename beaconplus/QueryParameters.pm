@@ -217,16 +217,16 @@ sub check_variant_params {
   my $query     =   shift;
 
   if ( $query->{variant_params}->{variant_type} =~ /^(?:UP)|(?:EL)$/ && ( $query->{variant_params}->{start_range}->[0] !~ /^\d+?$/ || $query->{variant_params}->{end_range}->[0] !~ /^\d+?$/ ) ) {
-    push(@{ $query->{query_errors} }, '"startMin" (and also startMax) or "endMin" (and also endMax) did not contain a numeric value - both are required for DUP & DEL.') }
+    push(@{ $query->{query_errors} }, 'ERROR: "startMin" (and also startMax) or "endMin" (and also endMax) did not contain a numeric value - both are required for DUP & DEL.') }
 
   if ( $query->{variant_params}->{variant_type} =~ /^BND$/ && ( $query->{variant_params}->{start_range}->[0] !~ /^\d+?$/ && $query->{variant_params}->{end_range}->[0] !~ /^\d+?$/ ) ) {
-    push(@{ $query->{query_errors} }, 'Neither "startMin" (and also startMax) or "endMin" (and also endMax) did contain a numeric value - one range is required for BND.') }
+    push(@{ $query->{query_errors} }, 'ERROR: Neither "startMin" (and also startMax) or "endMin" (and also endMax) did contain a numeric value - one range is required for BND.') }
 
   if ($query->{variant_params}->{reference_name} !~ /^(?:(?:(?:1|2)?\d)|x|y)$/i) {
-    push(@{ $query->{query_errors} }, '"variants.reference_name" did not contain a valid value (e.g. "chr17" "8", "X").') }
+    push(@{ $query->{query_errors} }, 'ERROR: "referenceName" did not contain a valid value (e.g. "chr17" "8", "X").') }
 
   if ( $query->{variant_params}->{variant_type} !~ /^(?:DUP)|(?:DEL)|(?:BND)$/ && $query->{variant_params}->{alternate_bases} !~ /^[ATGC]+?$/ ) {
-    push(@{ $query->{query_errors} }, 'There was no valid value for either "alternateBases or variantType".'); }
+    push(@{ $query->{query_errors} }, 'ERROR: There was no valid value for either "alternateBases or variantType".'); }
 
   return $query;
 
@@ -320,9 +320,9 @@ Queries with multiple options for the same attribute are treated as logical "OR"
 =cut
 
     if (ref $query->{biosample_params}->{$qKey} eq 'ARRAY') {
-      foreach (@{ $query->{biosample_params}->{$qKey} }) { push(@thisQlist, { $qKey => qr/^$_/i }) } }
+      foreach (@{ $query->{biosample_params}->{$qKey} }) { push(@thisQlist, { $qKey => qr/^(?:pgx\:)?$_/i }) } }  # FIX pgx:
     else {
-      push(@thisQlist, { $qKey => qr/^$query->{biosample_params}->{$qKey}/i }) }
+      push(@thisQlist, { $qKey => qr/^(?:pgx\:)?$query->{biosample_params}->{$qKey}/i }) }  # FIX pgx:
 
     if (@thisQlist == 1)    { push(@qList, $thisQlist[0]) }
     elsif (@thisQlist > 1)  { push(@qList, {'$or' => [ @thisQlist ] } ) }

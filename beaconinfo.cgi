@@ -18,7 +18,7 @@ my $here_path   =   File::Basename::dirname( eval { ( caller() )[1] } );
 our $config     =   LoadFile($here_path.'/rsrc/config.yaml') or die print 'Content-type: text'."\n\n¡No config.yaml file in this path!";
 
 my $querytype   =   param('querytype');
-my $datasets    =   [ param('dataset_ids') ];
+my $datasets    =   [ param('datasetIds') ];
 
 if ($datasets->[0] =~ /\w\w\w/) {
   $config->{ dataset_names }  =   [];

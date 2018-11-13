@@ -22,37 +22,35 @@ use beaconPlus::QueryExecution;
 my $here_path   =   File::Basename::dirname( eval { ( caller() )[1] } );
 our $config     =   LoadFile($here_path.'/rsrc/config.yaml') or die print 'Content-type: text'."\n\n¡No config.yaml file in this path!";
 
+my $datasets    =   [ param('datasetIds') ];
+if ($datasets->[0] =~ /\w\w\w/) {
+  $config->{ dataset_names }  =   [];
+  foreach (grep{ /\w\w\w/ } @$datasets) {
+    push(@{ $config->{ dataset_names } }, $_);
+  }
+}
+
 =pod
 
 Please see the associated beaconresponse.md
 
-https://beacon.progenetix.test/beaconplus-server/beaconresponse.cgi?datasetId=arraymap&referenceName=9&assemblyId=GRCh38&variantType=DEL&startMin=19,500,000&startMax=21,975,098&endMin=21,967,753&endMax=24,500,000&referenceBases=N&biosamples.biocharacteristics.type.id=ncit:C3224
+https://beacon.progenetix.test/beaconplus-server/beaconresponse.cgi?datasetIds=arraymap&referenceName=9&assemblyId=GRCh38&variantType=DEL&startMin=19,500,000&startMax=21,975,098&endMin=21,967,753&endMax=24,500,000&referenceBases=N&biosamples.biocharacteristics.type.id=ncit:C3224
 
-https://beacon.progenetix.test/beaconplus-server/beaconresponse.cgi/?datasetId=arraymap&referenceName=9&assemblyId=GRCh38&variantType=DEL&startMin=19,500,000&startMax=21,975,098&endMin=21,967,753&endMax=24,500,000&referenceBases=N&biosamples.biocharacteristics.type.id=icdom:94003
+https://beacon.progenetix.test/beaconplus-server/beaconresponse.cgi/?datasetIds=arraymap&referenceName=9&assemblyId=GRCh38&variantType=DEL&startMin=19,500,000&startMax=21,975,098&endMin=21,967,753&endMax=24,500,000&referenceBases=N&biosamples.biocharacteristics.type.id=icdom:94003
 =cut
 
 #print 'Content-type: text'."\n\n";
 
 if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
 
-my $args        =   {};
-bless $args;
-
-$args->{datasetPar} =   _getDatasetParams();
-
 my $query       =   beaconPlus::QueryParameters->new($config);
-
-# catching some input errors ###################################################
-# TODO: expand ...
-$args->{biosErrM}   =   _checkBiosParams($query->{biosample_params});
-$args->{queryScope} =   'datasetAlleleResponses';
-$args->{queryType}  =   'alleleRequest';
 
 ################################################################################
 
 my $datasetR    =   [];
-if ($args->{varErrM} !~ /.../ || $args->{biosErrM} !~ /.../) {
-  $datasetR     =    _getDatasetResponses($args) }
+if (! grep{ /ERROR/i } @{ $query->{query_errors} }) {
+  $datasetR     =    _getDatasetResponses() }
+  
 my $bcExists    =   \0;
 if (grep{ $_->{exists} } @$datasetR) { $bcExists = \1 }
 my $response    =   {
@@ -79,47 +77,12 @@ exit;
 ################################################################################
 ################################################################################
 
-sub _getDatasetParams {
-
-  my $qPar      =   {};
-
-  $qPar->{dataset_id}   =   param('datasetId');
-  $qPar->{assembly_id}  =   param('assemblyId');
-  if ($qPar->{assembly_id} !~ /^\w{3,64}$/) { $qPar->{assembly_id} = 'GRCh38' }
-
-  $qPar->{dataset_ids}  =   [ param('dataset_ids')];
-  if ($qPar->{dataset_ids}->[0] !~ /\w\w\w/) {
-    if ($qPar->{dataset_id} =~ /^\w{3,64}$/) { push(@{$qPar->{dataset_ids}}, $qPar->{dataset_id}) }
-    else { $qPar->{dataset_ids} = $config->{ dataset_names } }
-  }
-
-  return $qPar;
-
-}
-
-################################################################################
-
-sub _checkBiosParams {
-
-  my $qPar      =   $_[0];
-  my $errorM;
-
-  if ( ! grep{ /\w\w\w/ } @{ $qPar->{"biocharacteristics.type.id"} }) {
-    $errorM     .=    'No biosamples.biocharacteristics.type.id was provided.' }
-
-  return $errorM;
-
-}
-
-################################################################################
-
 sub _getDatasetResponses {
 
-  my $args      =   shift;
   my $datasets  =   [];
 
-  foreach (@{ $args->{datasetPar}->{dataset_ids} }) {
-    push(@$datasets, _getDataset($args, $_) );
+  foreach (@{ $config->{ dataset_names } }) {
+    push(@$datasets, _getDataset($_) );
   }
 
   return $datasets;
@@ -136,13 +99,13 @@ sub _getDataset {
 
   $MongoDB::Cursor::timeout = 120000;
 
-  my $args      =   shift;
   my $dataset   =   shift;
   my $counts    =   {
     variant_count   => 0,
     call_count      => 0,
     sample_count    => 0,
     frequency       => 0,
+    exists          =>  \0,
   };
   my $dbCall    =   {}; 
   my $db        =   $dataset;
@@ -189,14 +152,12 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
   # while not strictly necessary, here the method keys are created as named 
   # variables - just for readability
   my $varids_from_variants      =   'variants::_id';
-  my $vardigests_from_variants  =   'variants::digest';
   my $csids_from_variants       =   'variants::callset_id::callsets::id';
   my $biosids_from_callsets     =   'callsets::biosample_id::biosamples::id';
   my $biosids_from_biosamples   =   'biosamples::id';
   
   $prefetch     =   beaconPlus::QueryExecution->new($config);
   $prefetch->{dataset}  =   $dataset; 
-  
   if (grep{ /.../ } keys %{ $query->{biosample_query} } ) {
     $prefetch->create_handover_object(
       $biosids_from_biosamples,
@@ -210,34 +171,24 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
       ],
     };
   }
-
+  
+  # getting the variants from the variant query (+ optional matching biosamples)
   $prefetch->create_handover_object(
     $varids_from_variants,
     $query->{variant_query}, 
   ); 
 
+  # retrieving the matching callsets
   $prefetch->create_handover_object(
     $csids_from_variants,
     { '_id' => { '$in' => $prefetch->{handover}->{$varids_from_variants}->{target_values} } }, 
   ); 
   
+  # retrieving the matching biosamples from callsets (faster than from variants)
   $prefetch->create_handover_object(
     $biosids_from_callsets,
     { "id" => { '$in' => $prefetch->{handover}->{$csids_from_variants}->{target_values} } },
   ); 
-
-  $prefetch->create_handover_object(
-    $vardigests_from_variants,
-    { "callset_id" => { '$in' => $prefetch->{handover}->{$csids_from_variants}->{target_values} } },
-  ); 
-
-  $counts->{variant_count}  =   $prefetch->{handover}->{$vardigests_from_variants}->{target_count};
-  if ($counts->{variant_count} > 0) { $counts->{'exists'} = \1 }
-
-  $counts->{call_count}   =   $prefetch->{handover}->{$csids_from_variants}->{target_count};
-  $counts->{sample_count} =    $prefetch->{handover}->{$biosids_from_callsets}->{target_count};
-  if ($biosBaseNo > 0) {
-    $counts->{frequency}  =   sprintf "%.4f",  $counts->{sample_count} / $biosBaseNo }
 
   ##############################################################################
   
@@ -256,7 +207,7 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
     },
     {
       note      =>  'export all variants of matched callsets',
-      url       =>  $config->{url_base}.'/beaconplus-server/beacondeliver.cgi?do=variants&accessid='.$prefetch->{handover}->{$vardigests_from_variants}->{_id},
+      url       =>  $config->{url_base}.'/beaconplus-server/beacondeliver.cgi?do=csvariants&accessid='.$prefetch->{handover}->{$csids_from_variants}->{_id},
       label     =>  'Callset Variants'
     },
     {
@@ -265,10 +216,18 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
       label     =>  'Matching Variants'
     }
   );
+ 
+  ##############################################################################
+
+  $counts->{variant_count}  =   $prefetch->{handover}->{$varids_from_variants}->{target_count};
+  if ($counts->{variant_count} > 0) { $counts->{'exists'} = \1 }
+
+  $counts->{call_count}   =   $prefetch->{handover}->{$csids_from_variants}->{target_count};
+  $counts->{sample_count} =   $prefetch->{handover}->{$biosids_from_callsets}->{target_count};
+  if ($biosBaseNo > 0) {
+    $counts->{frequency}  =   sprintf "%.4f",  $counts->{sample_count} / $biosBaseNo }
 
   if (! $counts->{"exists"}) { $handover = [] }
-  
-  ##############################################################################
 
   return  {
     datasetId   =>  $dataset,
@@ -282,7 +241,6 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
     externalUrl =>  $config->{url},
     handover    =>  $handover,
     info        =>  {
-      callset_access_handle =>  $args->{access_id},
       description           =>  'The query was against database "'.$db.'", variant collection "'.$config->{collection_names}->{variant_collection}.'". '.$counts->{call_count}.' matched callsets for '.$counts->{variant_count}.' distinct variants. Out of '.$biosAllNo.' biosamples in the database, '.$biosBaseNo.' matched the biosample query; of those, '.$counts->{sample_count}.' had the variant.',
     },
 

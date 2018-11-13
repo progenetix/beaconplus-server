@@ -7,6 +7,7 @@ require Exporter;
 @ISA    =   qw(Exporter);
 @EXPORT =   qw(
   new
+  prefetch_data
   create_handover_object
 );
 
@@ -33,11 +34,14 @@ sub new {
 
 ################################################################################
 
-sub create_handover_object {
+sub prefetch_data {
 
   my $prefetch  =   shift;
   my $method    =   shift;
   my $query     =   shift;
+
+  $prefetch->{dataset}  ||= 'arraymap';
+
   my (
     $source_c,
     $source_k,
@@ -48,9 +52,7 @@ sub create_handover_object {
   # two components are interpolated to same output
   if ($target_c !~  /\w/) { $target_c = $source_c }
   if ($target_k !~  /\w/) { $target_k = $source_k }
-
-  my $dataset   =   $prefetch->{dataset}  ||= 'arraymap';
-  my $access_id =   create_UUID_as_string();
+  
   my $distincts =   MongoDB::MongoClient->new()->get_database( $prefetch->{dataset} )->run_command([
                       "distinct"=>  $source_c,
                       "key"     =>  $source_k,
@@ -61,7 +63,6 @@ sub create_handover_object {
   my $distCount =   scalar @{ $distVals };
     
   $prefetch->{handover}->{$method}  =   {
-    _id               =>  $access_id,
     source_db         =>  $prefetch->{dataset},
     source_collection =>  $source_c,
     source_key        =>  $source_k,
@@ -70,6 +71,21 @@ sub create_handover_object {
     target_values     =>  $distVals,
     target_count      =>  $distCount,
   };
+
+  return $prefetch;
+
+}
+
+################################################################################
+
+sub create_handover_object {
+
+  my $prefetch  =   shift;
+  my $method    =   shift;
+  my $query     =   shift;
+
+  $prefetch->prefetch_data($method, $query);    
+  $prefetch->{handover}->{$method}->{_id} =   create_UUID_as_string();
 
   $prefetch->{handover_coll}->insert( $prefetch->{handover}->{$method} );
     
