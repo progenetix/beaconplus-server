@@ -87,17 +87,17 @@ END
 
 # biosamples query
 
-$cursor     =   $dbconn->get_collection('biosamples')->find( $args{'-biosquery'} )->fields( { id => 1, 'biocharacteristics.type' => 1, info => 1 } );
+$cursor     =   $dbconn->get_collection('biosamples')->find( $args{'-biosquery'} )->fields( { id => 1, 'bio_characteristics.ontology_terms' => 1, info => 1 } );
 my $biosamples =   [ $cursor->all ];
 if ($args{'-randno'} > 0) {
   $biosamples =   [ (shuffle(@$biosamples))[0..($args{'-randno'}-1)] ] }
 
 for my $i (0..$#{ $biosamples }) {
-  my @icdm      =  grep{ $_->{id} =~ /icdom/ } @{ $biosamples->[$i]->{biocharacteristics}->[0]->{type} };
-  $biosamples->[$i]->{id}     =   $icdm[0]->{id};
-  $biosamples->[$i]->{label}  =   $icdm[0]->{label};
-  delete $biosamples->[$i]->{biocharacteristics};
-  print Dumper($biosamples->[$i]->{id}, $biosamples->[$i]->{id}, $biosamples->[$i]->{label})."\n";
+  my @icdm      =  grep{ $_->{term_id} =~ /icdom/ } @{ $biosamples->[$i]->{bio_characteristics}->[0]->{ontology_terms} };
+  $biosamples->[$i]->{term_id}     =   $icdm[0]->{term_id};
+  $biosamples->[$i]->{term_label}  =   $icdm[0]->{term_label};
+  delete $biosamples->[$i]->{bio_characteristics};
+  print Dumper($biosamples->[$i]->{id}, $biosamples->[$i]->{term_id}, $biosamples->[$i]->{term_label})."\n";
 }
 
 #my $samleMap    =   { map{ $_}}
@@ -106,14 +106,14 @@ for my $i (0..$#{ $biosamples }) {
 
 $args{'-text_bottom_left'}      =   $csNo.' samples';
 
-my $plot        =   new PGX::GenomePlots::Genomeplot(\%args);
-$plot->plot_add_frequencymaps( [ {
+my $pgx        =   new PGX::GenomePlots::Genomeplot(\%args);
+$pgx->pgx_add_frequencymaps( [ {
   statusmapsets =>  $callsets } ] );
-$plot->return_histoplot_svg();
+$pgx->return_histoplot_svg();
 
 open  (FILE, ">", $args{'-svg'}) || warn 'output file '.$args{'-svg'}.' could not be created.';
 binmode(FILE, ":utf8");
-print FILE  $plot->{svg};
+print FILE  $pgx->{svg};
 close FILE;
 
 my $timeLab     =   strftime("%T", gmtime());
@@ -207,7 +207,7 @@ END
   foreach (@showArgs) {
     my $name    = '    -'.$_.(" " x 40);
     $name       =~  s/^(.{40}).*?$/$1/;
-    print $name.$plot->{parameters}->{$_}."\n";
+    print $name.$pgx->{parameters}->{$_}."\n";
   }
   print <<END;
 

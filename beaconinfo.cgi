@@ -12,12 +12,11 @@ use MongoDB;
 use MongoDB::MongoClient;
 use Data::Dumper;
 
-use YAML::XS qw(LoadFile);
-
-my $here_path   =   File::Basename::dirname( eval { ( caller() )[1] } );
-our $config     =   LoadFile($here_path.'/rsrc/config.yaml') or die print 'Content-type: text'."\n\n¡No config.yaml file in this path!";
+use beaconPlus::ConfigLoader;
+my $config      =   beaconPlus::ConfigLoader->new();
 
 my $querytype   =   param('querytype');
+my $autoc       =   param('autocomplete');
 my $datasets    =   [ param('datasetIds') ];
 
 if ($datasets->[0] =~ /\w\w\w/) {
@@ -40,6 +39,7 @@ if ($querytype =~ /get_datasetids/) {
 =pod
 
 Please see the associated beaconresponse.md
+
 =cut
 
 my $dbClient    =   MongoDB::MongoClient->new();
@@ -56,7 +56,7 @@ my $beaconInfo  =   {
   dataset       =>  [],
 };
 
-my %ontologyIds;
+my $ontologyIds;
 my $biosQ       =   {};
 my $querytext;
 my $queryregex;
@@ -64,7 +64,15 @@ my $queryregex;
 if (param( 'querytext')) {
   $querytext    =   param( 'querytext');
   $queryregex   =   qr/$querytext/i;
-  $biosQ        =   { "id" => { '$regex' => $queryregex } } }
+  $biosQ        =   { '$or' =>  [
+                      { "id"    => { '$regex' => $queryregex } },
+                      { "label" => { '$regex' => $queryregex } },
+                    ] };
+} else {
+
+  exit;
+
+}
 
 #print Dumper($biosQ);
 
@@ -86,15 +94,15 @@ foreach my $datasetId ( @{ $config->{ dataset_names }}) {
 
   ##############################################################################
 
-  my $cursor    =   $dbconn->get_collection('biosubsets')->find( $biosQ )->fields({ id => 1, label => 1, count => 1});
-  foreach ($cursor->all) {
-    $ontologyIds{ $_->{id} } = $_->{id}.': '.$_->{label};
-    if (@{ $config->{ dataset_names }} == 1) {
-      $ontologyIds{ $_->{id} } .= ' ('.$_->{count}.')';
-    }
+  my $cursor    =   $dbconn->get_collection('biosubsets')->find( $biosQ )->fields({ id => 1, label => 1, count => 1, _id => 0});
+  my @subsets   =   $cursor->all;
+  foreach my $sub (@subsets) {
+    $sub->{label_short}   =  $sub->{label};
+    $sub->{label_short}   =~ s/^(.{20,45}?)[\s\,].*?$/$1.../;
+    $ontologyIds->{ $sub->{id} }  =   $sub;
   }
 
-  $datasetI->{ info }->{ ontology_terms } =   [ map{ { $_ => $ontologyIds{ $_ } } } sort keys %ontologyIds ];
+  $datasetI->{ info }->{ ontology_terms } =   [ map{ { $_ => $ontologyIds->{ $_ } } } sort keys %{ $ontologyIds } ];
 
   ##############################################################################
 
@@ -108,9 +116,12 @@ foreach my $datasetId ( @{ $config->{ dataset_names }}) {
 $beaconInfo->{supportedRefs}  =   $config->{ genome_assemblies };
 
 if ($querytype =~ /ontologyid/) {
-  $beaconInfo  =   [ map{ { id => $_, infolabel => $ontologyIds{$_} } } sort keys %ontologyIds ] }
+  $beaconInfo  =   [ map{ $ontologyIds->{$_} } sort keys %{ $ontologyIds } ] }
 
-print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->encode($beaconInfo)."\n";
+if ($autoc =~ /1|y/i) {
+  print param('callback').'({"data":['.join(',', (map{ JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode($_) } @$beaconInfo )).']});'."\n" }
+else {
+  print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->encode($beaconInfo)."\n" }
 
 exit;
 

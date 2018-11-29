@@ -1,6 +1,0 @@
----
-biosample_params:
-  biocharacteristics.type.id:
-    name: 'biosamples.biocharacteristics.type.id'
-    pattern: '^\w+[\:$](?:\w+?)?'
-    type: array

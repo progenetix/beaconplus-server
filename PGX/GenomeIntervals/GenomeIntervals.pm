@@ -54,7 +54,10 @@ Returns:
 
 ########    ####    ####    ####    ####    ####    ####    ####    ####    ####
 
-  my ($cytobands, $intSize)     =   @_;
+  my (
+    $cytobands,
+    $intSize
+  )             =   @_;
 
   if ($intSize !~ /^\d{3,9}$/) { $intSize = 1000000 }
 

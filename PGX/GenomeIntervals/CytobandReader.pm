@@ -92,7 +92,7 @@ Returns:
 
 sub cytoband_to_coordinates {
 
-  my $plot      =   shift;
+  my $pgx       =   shift;
   my $cytoband  =   shift;
 
   my $coords    =   {};
@@ -105,7 +105,7 @@ sub cytoband_to_coordinates {
                     $/xi) {
   
     my $chro    =   $1;
-    my $bands   =   [ grep{ $_->{label} =~ /^$cytoband/ } @{ $plot->{cytobands} } ];
+    my $bands   =   [ grep{ $_->{label} =~ /^$cytoband/ } @{ $pgx->{cytobands} } ];
     my @edges   =   sort { $a <=> $b } (map{ $_->{start}, $_->{end} } @$bands);
     
     $coords     =   {

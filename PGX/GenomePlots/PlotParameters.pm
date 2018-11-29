@@ -18,9 +18,9 @@ require Exporter;
 sub read_plot_defaults {
 
   use File::Basename;
-
-  my $here_path =   File::Basename::dirname( eval { ( caller() )[1] } );
-  return  LoadFile($here_path.'/../config/plotdefaults.yaml');
+  my $path_of_this_module = File::Basename::dirname( eval { ( caller() )[1] } );
+  my $plotPars  =   LoadFile($path_of_this_module.'/../rsrc/config/plotdefaults.yaml');
+  return  $plotPars;
 
 }
 
@@ -76,7 +76,6 @@ Returns:
   # adjusting arguments for the selected plot type
   if (grep{ $args->{'-plottype'} eq $_ } keys %{ $plotPars->{plottype_values} }) {
     foreach (keys %{ $plotPars->{plottype_values}->{ $args->{'-plottype'} } }) {
-# print Dumper([$args->{'-plottype'}, $_, $plotPars->{plottype_values}->{ $args->{'-plottype'} }->{$_}]).'<hr/>';
       $plotPars->{$_} =   $plotPars->{plottype_values}->{ $args->{'-plottype'} }->{$_} }
     delete $plotPars->{plottype_values};
     delete $args->{'-plottype'};
@@ -89,7 +88,14 @@ Returns:
 
     # special evaluation: regions
     if ($par eq 'plotregions') {
+
+      if (ref $args->{'-plotregions'} eq 'ARRAY') {      
+        $args->{'-plotregions'} =   join(',', @{ $args->{'-plotregions'} }) }
+
       foreach my $plotregion (split(',', $args->{'-plotregions'})) {
+
+#print Dumper('pr'.$plotregion);
+
         if ($plotregion =~ /^(?:chro?)?(\w\d?)\:(\d+?)\-(\d+?)$/) {
           my $plotR =   {
             reference_name  =>  $1,
@@ -101,8 +107,14 @@ Returns:
 
     # special evaluation: markers
     elsif ($par eq 'markers') {
+
+      if (ref $args->{'-markers'} eq 'ARRAY') {      
+        $args->{'-markers'} =   join(',', @{ $args->{'-markers'} }) }
+
       foreach (split(',', $args->{'-markers'})) {
+
         my @markervals  =   split(':', $_);
+
         if (
           $markervals[0]  =~ /^(chro?)?([\dxy]\d?)$/i
           &&
@@ -119,7 +131,6 @@ Returns:
             $mark->{color}  =   random_hexcolor() }
           push(@{ $plotPars->{'markers'} }, $mark);
     }}}
-
     # list style parameters are provided comma concatenated => deparsed
     elsif (grep{ $par eq $_ } qw(chr2plot label_y_m)) {
       $plotPars->{$par}   =   [ split(',', $args->{'-'.$par}) ] }
