@@ -230,6 +230,27 @@ sub norm_variant_params {
   # this also fills in min = max if only one parameter has been provided
   # for start or end, respectively
   my @rangeVals =   ();
+  
+  # for lazy querying, when only outer macthes are provided
+  if (
+    $query->{variant_params}->{start_min} =~ /^\d+?$/
+    &&
+    $query->{variant_params}->{end_max} =~ /^\d+?$/
+    &&
+    $query->{variant_params}->{start_max} !~ /^\d+?$/
+  ) {
+    $query->{variant_params}->{start_max} =   $query->{variant_params}->{end_max};
+  }
+  if (
+    $query->{variant_params}->{start_min} =~ /^\d+?$/
+    &&
+    $query->{variant_params}->{end_max} =~ /^\d+?$/
+    &&
+    $query->{variant_params}->{end_min} !~ /^\d+?$/
+  ) {
+    $query->{variant_params}->{end_min} =   $query->{variant_params}->{start_min};
+  }
+  
   foreach my $side (qw(start end)) {
     my $parKeys =   [ grep{ /^$side(?:_m(?:(?:in)|(?:ax)))?$/ } keys %{ $query->{variant_params} } ];
     my @parVals =   grep{ /^\d+?$/ } @{ $query->{variant_params} }{ @$parKeys };
