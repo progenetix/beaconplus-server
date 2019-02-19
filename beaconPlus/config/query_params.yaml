@@ -1,84 +1,135 @@
 ---
-variant_params:
+variants:
   scope: variants
   parameters:
-    reference_name:
-      name: reference_name
+    referenceName:
+      paramkey: 'variants.reference_name'
+      dbkey: reference_name
       alias:
-        - referenceName
+        - reference_name
       pattern: '^\w+?$'
-    mate_name:
-      name: mate_name
+    mateName:
+      paramkey: 'variants.mate_name'
+      dbkey: mate_name
       alias:
-        - mateName
+        - mate_name
       pattern: '^\w+?$'
-    reference_bases:
-      name: reference_bases
+    referenceBases:
+      paramkey: 'variants.reference_bases'
+      dbkey: reference_bases
       alias:
-        - referenceBases
+        - reference_bases
+      pattern: '^[\w\*]+?$'
+    alternateBases:
+      paramkey: 'variants.alternate_bases'
+      dbkey: alternate_bases
+      alias:
+        - alternate_bases
       pattern: '^\w+?$'
-    alternate_bases:
-      name: alternate_bases
+    variantType:
+      paramkey: 'variants.variant_type'
+      dbkey: variant_type
       alias:
-        - alternateBases
-      pattern: '^\w+?$'
-    variant_type:
-      name: variant_type
-      alias:
-        - variantType
+        - variant_type
       pattern: '^\w+?$'
     start:
-      name: start
+      paramkey: 'variants.start'
+      dbkey: start
       alias:
         - start
       pattern: '^\d+?$'
       type: integer
     end:
-      name: end
+      paramkey: 'variants.end'
+      dbkey: end
       alias:
         - end
       pattern: '^\d+?$'
       type: integer
-    start_min:
-      name: start_min
+    startMin:
+      paramkey: 'variants.start_min'
+      dbkey: start_min
       alias:
-        - startMin
+        - start_min
       pattern: '^\d+?$'
       type: integer
-    start_max:
-      name: start_max
+    startMax:
+      paramkey: 'variants.start_max'
+      dbkey: start_max
       alias:
-        - startMax
+        - start_max
       pattern: '^\d+?$'
       type: integer
-    end_min:
-      name: end_min
+    endMin:
+      paramkey: 'variants.end_min'
+      dbkey: end_min
       alias:
-        - endMin
+        - end_min
       pattern: '^\d+?$'
       type: integer
-    end_max:
-      name: end_max
+    endMax:
+      paramkey: 'variants.end_max'
+      dbkey: end_max
       alias:
-        - endMax
+        - end_max
       pattern: '^\d+?$'
       type: integer
-biosample_params:
+
+biosamples:
   scope: biosamples
   parameters:
     biocharacteristics.type.id:
-      name: 'biosamples.biocharacteristics.type.id'
+      paramkey: 'biosamples.biocharacteristics.type.id'
+      dbkey: 'biocharacteristics.type.id'
       alias:
         - 'biosamples-biocharacteristics-type-id'
         - 'biocharacteristics.type.id'
         - 'biocharacteristics-type-id'
-      pattern: '^\w+[\:$](?:\w+?)?'
+      pattern: '^(\w+[\:$])?\w*?\d(?:[\w\-\.]+?)?'
       type: array
+    external_references.type.id:
+      paramkey: 'biosamples.external_references.type.id'
+      alias:
+        - 'biosamples-external_references-type-id'
+        - 'external_references.type.id'
+        - 'external_references-type-id'
+      pattern: '^(\w+[\:$])?\w*?\d(?:[\w\-\.]+?)?'
+      type: array
+
+biosubsets:
+  scope: biosubsets
+  parameters:
+    id:
+      paramkey: 'biocharacteristics.type.id'
+      dbkey: 'id'
+      alias:
+        - 'biosubsets-biocharacteristics-type-id'
+        - 'biosubsets.biocharacteristics.type.id'
+        - 'biocharacteristics.type.id'
+        - 'biocharacteristics-type-id'
+      pattern: '^\w+[\:$]?(?:[\w\-\.]+?)?'
+      type: array
+
+datacollections:
+  scope: datacollections
+  parameters:
+    id:
+      paramkey: 'external_references.type.id'
+      dbkey: 'id'
+      alias:
+        - 'datacollections-external_references-type-id'
+        - 'datacollections.external_references.type.id'
+        - 'external_references.type.id'
+        - 'external_references-type-id'
+      pattern: '^\w+[\:$]?(?:[\w\-\.]+?)?'
+      type: array
+
 filters:
   scope: filters
   parameters:
     randno:
-      name: randno
+      paramkey: 'filters.randno'
+      dbkey: 'randno'               # not really used this way
       alias:
         - randno
       pattern: '^\d+?$'

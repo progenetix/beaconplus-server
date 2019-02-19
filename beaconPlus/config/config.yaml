@@ -23,6 +23,32 @@ collection_names:
   biosample_collection: biosamples
   individual_collection: individuals
   biosubset_collection: biosubsets
+handover_types:
+  cnvhistogram:
+    id: 'pgx:handover:cnvhistogram'
+    label: "CNV Histogram"
+    description: "create a CNV histogram from matched callsets"
+    handover_method: 'callsets::_id'
+  biosamplesdata:
+    id: 'pgx:handover:biosamplesdata'
+    label: "Biosamples"
+    description: "retrieve data of the biosamples matched by the query"
+    handover_method: 'biosamples::_id'
+  individualsdata:
+    id: 'pgx:handover:individualsdata'
+    label: "Individuals"
+    description: "retrieve data of the individuals matched by the query"
+    handover_method: 'individuals::_id'
+  variantsdata:
+    id: 'pgx:handover:variantsdata'
+    label: "Variants"
+    description: "retrieve data of the variants matched by the query"
+    handover_method: 'variants::_id'
+  callsetsvariants:
+    id: 'pgx:handover:callsetsvariants'
+    label: "Callsets Variants"
+    description: "export all variants of matched callsets - potentially huge dataset..."
+    handover_method: 'callsets::_id'
 genome_assemblies:
   - 'GRCh38'
 url: 'https://beacon.progenetix.org/beacon/info/'
@@ -33,3 +59,4 @@ actions:
   - handover
 handover_db: progenetix
 handover_coll: querybuffer
+max_distinct_variants: 20

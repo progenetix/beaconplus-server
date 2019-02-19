@@ -36,10 +36,14 @@ our $todo       =   param('do');
 our $pretty     =   param('jsonpretty');
 
 if ($access_id  =~  /[^\w\-]/) {
-
   print 'Content-type: text'."\n\n";
-  print 'Wrong ot missing access_id parameter '.$access_id;
+  print '¡Wrong access_id parameter '.$access_id.'!';
+  exit;
+}
 
+if ($access_id  !~  /\w/) {
+  print 'Content-type: text'."\n\n";
+  print '¡Missing access_id parameter!';
   exit;
 }
 
@@ -47,12 +51,17 @@ if ($pretty !~ /^1|y/) {
   $pretty       =   0 }
 
 our $handover   =    MongoDB::MongoClient->new()->get_database( $config->{handover_db} )->get_collection( $config->{handover_coll} )->find_one( { _id	=>  $access_id } );
-#print Dumper($handover);
+#print 'Content-type: text'."\n\n";
+# print Dumper($todo);
+# print Dumper($handover);
 #exit;
 _print_histogram();
 _export_callsets();
-_export_biosamples();
+_export_biosamples_individuals();
 _export_variants();
+print 'Content-type: text'."\n\n";
+exit;
+
 
 ################################################################################
 # subs #########################################################################
@@ -60,7 +69,7 @@ _export_variants();
 
 sub _print_histogram {
 
-  if ($todo !~ /histo/i) { return }
+  if ($todo !~ /cnvhistogram/i) { return }
 
   my $datacoll  =   MongoDB::MongoClient->new()->get_database( $handover->{source_db} )->get_collection( $handover->{target_collection} );
   my $dataQuery =   { $handover->{target_key} => { '$in' => $handover->{target_values} } };
@@ -87,6 +96,7 @@ sub _print_histogram {
 
   print 'Content-type: image/svg+xml'."\n\n";
   print $plot->{svg};
+  exit;
 
 }
 
@@ -94,7 +104,7 @@ sub _print_histogram {
 
 sub _export_callsets {
 
-  if ($todo !~ /callsets/i) { return }
+  if ($todo !~ /callsetsdata/i) { return }
 
   print 'Content-type: application/json'."\n\n";
 
@@ -103,14 +113,16 @@ sub _export_callsets {
   my $cursor	  =		$datacoll->find( $dataQuery )->fields( { _id => 0, updated => 0, created => 0 } );
 
   print	JSON::XS->new->pretty( $pretty )->allow_blessed->convert_blessed->encode([$cursor->all]);
+  exit;
 
 }
 
 ################################################################################
 
-sub _export_biosamples {
+sub _export_biosamples_individuals {
 
-  if ($todo !~ /biosamples/i) { return }
+
+  if (! grep{ /^$todo$/ } qw(biosamplesdata individualsdata)) { return }
 
   print 'Content-type: application/json'."\n\n";
 
@@ -120,6 +132,7 @@ sub _export_biosamples {
   my $cursor	  =		$datacoll->find( { $handover->{target_key} => { '$in' => $handover->{target_values} } } )->fields( { attributes => 0, _id => 0, updated => 0, created => 0 } );
 
   print	JSON::XS->new->pretty( $pretty )->allow_blessed->convert_blessed->encode([$cursor->all]);
+  exit;
 
 }
 
@@ -135,10 +148,22 @@ sub _export_variants {
   my $cursor    =   {};
 
   my $key       =   $handover->{target_key};
-  if ($todo =~ /cs/i) { $key  =  'callset_id' }
-  $cursor	      =		$datacoll->find( { $key => { '$in' => $handover->{target_values} } } )->fields( { _id => 0, updated => 0, created => 0 } );
+  my $values    =   $handover->{target_values};
+  if ($todo =~ /callset/i) { 
+    $key        =   'callset_id';
+    my $distincts =   $dataconn->run_command([
+                      "distinct"=>  'callsets',
+                      "key"     =>  'id',
+                      "query"   =>  { _id => { '$in' => $handover->{target_values} } },
+                    ]);
+
+    $values     =   $distincts->{values};
+
+  }
+  $cursor	      =		$datacoll->find( { $key => { '$in' => $values } } )->fields( { _id => 0, updated => 0, created => 0 } );
 
   print	JSON::XS->new->pretty( $pretty )->allow_blessed->convert_blessed->encode([$cursor->all]);
+  exit;
 
 }
 

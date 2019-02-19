@@ -69,9 +69,8 @@ if (param( 'querytext')) {
                       { "label" => { '$regex' => $queryregex } },
                     ] };
 } else {
-
+  print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->encode($beaconInfo)."\n";
   exit;
-
 }
 
 #print Dumper($biosQ);
@@ -93,8 +92,12 @@ foreach my $datasetId ( @{ $config->{ dataset_names }}) {
   }
 
   ##############################################################################
+  
+  my $collName  =   'biosubsets';
+  if ($querytype  =~ /referenceid/) {
+    $collName  =   'datacollections' }
 
-  my $cursor    =   $dbconn->get_collection('biosubsets')->find( $biosQ )->fields({ id => 1, label => 1, count => 1, _id => 0});
+  my $cursor    =   $dbconn->get_collection($collName)->find( $biosQ )->fields({ id => 1, label => 1, count => 1, _id => 0});
   my @subsets   =   $cursor->all;
   foreach my $sub (@subsets) {
     $sub->{label_short}   =  $sub->{label};
@@ -115,7 +118,7 @@ foreach my $datasetId ( @{ $config->{ dataset_names }}) {
 
 $beaconInfo->{supportedRefs}  =   $config->{ genome_assemblies };
 
-if ($querytype =~ /ontologyid/) {
+if ($querytype =~ /ontologyid|referenceid/) {
   $beaconInfo  =   [ map{ $ontologyIds->{$_} } sort keys %{ $ontologyIds } ] }
 
 if ($autoc =~ /1|y/i) {
