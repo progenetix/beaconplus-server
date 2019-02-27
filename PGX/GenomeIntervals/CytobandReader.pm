@@ -119,7 +119,6 @@ sub cytoband_to_coordinates {
   
   return $coords;
 
-
 }
 
 ################################################################################
@@ -154,9 +153,9 @@ sub genome_names_to_hg {
   $genome       =~  s/^(grch\d\d).*?$/$1/;
   $genome       =~  s/^(hg\d\d).*?$/$1/;
   my %geNames   =   (
-    grch36  =>  'hg18',
-    grch37  =>  'hg19',
-    grch38  =>  'grch38',
+    grch36      =>  'hg18',
+    grch37      =>  'hg19',
+    grch38      =>  'grch38',
   );
 
   if ($genome =~ /^hg\d\d$/) {

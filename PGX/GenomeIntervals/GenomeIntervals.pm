@@ -151,7 +151,7 @@ Returns:
 sub get_genome_basecount {
 
   my $genBases;
-  my ($allRefs, $chr2plot)   =   @_;
+  my ($allRefs, $chr2plot)  =   @_;
 
   my %refNames  =   map { $_ => 1 } @$chr2plot;
 

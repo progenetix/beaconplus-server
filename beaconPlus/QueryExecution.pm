@@ -29,7 +29,6 @@ sub new {
   my $self      =   {
     config      =>  $config,
     handover_coll   =>   MongoDB::MongoClient->new()->get_database( $config->{handover_db} )->get_collection( $config->{handover_coll} ),
-    error       =>  [],
   };
 
   bless $self, $class;
@@ -94,7 +93,7 @@ sub get_base_counts {
   $prefetch->{filters}  ||= {};
 
   $prefetch->{counts}   =   {};
-  foreach (qw(callsets biosamples variants individuals)) {
+  foreach (qw(callsets biosamples variants)) {
     $prefetch->{counts}->{$_.'_base_count'}  =   $prefetch->{db_conn}->get_collection($_)->find()->count();
   }
 
@@ -127,14 +126,10 @@ sub execute_aggregate_query {
   my $query     =   shift;
   
   $prefetch->get_base_counts();
-  push(
-    @{$prefetch->{error}},
-    @{$query->{query_errors}}  
-  );
 
   # the main prefetch method here is the retrieval of the 
   # "callsets" collection's "id" values
-  my $csidHO    =   'callsets::id';
+  my $method    =   'callsets::id';
   
   if (! grep{ /.../ }
     keys %{ $query->{callset_query} },
@@ -144,8 +139,8 @@ sub execute_aggregate_query {
 
 # 1. Checking for a callsets query & return iq query but no matches
   if (grep{ /.../ } keys %{ $query->{callset_query} } ) {
-    $prefetch->prefetch_data( 'callsets::id', $query->{callset_query} );
-    if ($prefetch->{handover}->{'callsets::id'}->{target_count} < 1) { 
+    $prefetch->prefetch_data( $method, $query->{callset_query} );
+    if ($prefetch->{handover}->{$method}->{target_count} < 1) { 
       return $prefetch } 
   }
   
@@ -159,16 +154,16 @@ sub execute_aggregate_query {
 # 3. If biosamples matches, retrieve the callset_id values; if there had been 
 #    matches before => intersect through added "$in" query
     my $thisQ   =   { 'biosample_id' => { '$in' =>  $prefetch->{handover}->{'biosamples::id'}->{target_values} } };
-    if ($prefetch->{handover}->{'callsets::id'}->{target_count} > 0) {
+    if ($prefetch->{handover}->{$method}->{target_count} > 0) {
       $thisQ      =   { '$and' =>
         [
           $thisQ,
-          { 'id' => { '$in' =>  $prefetch->{handover}->{'callsets::id'}->{target_values} } },
+          { $prefetch->{handover}->{$method}->{target_key} => { '$in' =>  $prefetch->{handover}->{$method}->{target_values} } },
         ],
       };
     }
-    $prefetch->prefetch_data('callsets::id', $thisQ);
-    if ($prefetch->{handover}->{'callsets::id'}->{target_count} < 1) { 
+    $prefetch->prefetch_data( $method, $thisQ );
+    if ($prefetch->{handover}->{$method}->{target_count} < 1) { 
       return $prefetch } 
   }
 
@@ -176,113 +171,56 @@ sub execute_aggregate_query {
 #    => intersect through added "$in" query; return iq query but no matches
   if (grep{ /.../ } keys %{ $query->{queries}->{variants} } ) {
     my $thisQ   =   $query->{queries}->{variants};
-    if ($prefetch->{handover}->{'callsets::id'}->{target_count} > 0) {
+    if ($prefetch->{handover}->{$method}->{target_count} > 0) {
 
       $thisQ    =   { '$and' =>
         [
           $thisQ,
-           { 'callset_id' => { '$in' =>  $prefetch->{handover}->{'callsets::id'}->{target_values} } },
+           { 'callset_id' => { '$in' =>  $prefetch->{handover}->{$method}->{target_values} } },
         ],
       };
     }
-    $prefetch->create_handover_object('variants::_id', $thisQ);
+    $prefetch->create_handover_object( 'variants::_id', $thisQ );
 
     if ($prefetch->{handover}->{'variants::_id'}->{target_count} < 1) { 
       return $prefetch }
 
-    # after all variants have been identified, their _id values are used
-    # to retrieve other associated data (digest, callset_id)
     $thisQ      =    { '_id' => { '$in' => $prefetch->{handover}->{'variants::_id'}->{target_values} } };
-    $prefetch->prefetch_data('variants::callset_id', $thisQ);
+    $thisM      =   'variants::callset_id';
+    $prefetch->prefetch_data( $thisM, $thisQ );
     
     # just to overwrite the key with the standard $method
-    $prefetch->{handover}->{'callsets::id'}->{target_values} =   $prefetch->{handover}->{'variants::callset_id'}->{target_values};
-    $prefetch->{handover}->{'callsets::id'}->{target_count}  =   $prefetch->{handover}->{'variants::callset_id'}->{target_count};
-
-    $prefetch->prefetch_data('variants::digest', $thisQ);
+    $prefetch->{handover}->{$method}->{target_values}  =   $prefetch->{handover}->{$thisM}->{target_values};
+    $prefetch->{handover}->{$method}->{target_count}  =   $prefetch->{handover}->{$thisM}->{target_count};
 
   }
 
-# Up to here, queries against callsets, biosamples and variants have all been reduced to the callsets::id values.
+# Up to here, queries against callsets, biosamples and variants have all been reduced to the biosamples::id values.
 
 # 6. Reset the biosample handover object & store it, from the current callsets
 
   $prefetch->prefetch_data(
     'callsets::biosample_id',
-    { 'id' => { '$in' => $prefetch->{handover}->{'callsets::id'}->{target_values} } },
-  );  
+    { 'id' => { '$in' => $prefetch->{handover}->{$method}->{target_values} } },
+  );
+#print '<hr/>callsets::biosample_id: '.$prefetch->{handover}->{'callsets::biosample_id'}->{target_count};
+  
   $prefetch->create_handover_object(
     'biosamples::_id',
     { 'id' => { '$in' => $prefetch->{handover}->{'callsets::biosample_id'}->{target_values} } },
   );
-  $prefetch->prefetch_data(
-    'biosamples::individual_id',
-    { '_id' => { '$in' => $prefetch->{handover}->{'biosamples::_id'}->{target_values} } },
-  ); 
-  $prefetch->create_handover_object(
-    'individuals::_id',
-    { 'id' => { '$in' => $prefetch->{handover}->{'biosamples::individual_id'}->{target_values} } },
-  );
   $prefetch->create_handover_object(
     'callsets::_id',
-    { 'id' => { '$in' => $prefetch->{handover}->{'callsets::id'}->{target_values} } },
+    { 'id' => { '$in' => $prefetch->{handover}->{$method}->{target_values} } },
   );
   
-  foreach (qw(callsets biosamples variants individuals)) {
-   if ($prefetch->{handover}->{$_.'::_id'}->{target_count}) {
+  foreach (qw(callsets biosamples variants)) {
+
+    if ($prefetch->{handover}->{$_.'::_id'}->{target_count}) {
       $prefetch->{counts}->{$_.'_match_count'} =   $prefetch->{handover}->{$_.'::_id'}->{target_count}; 
     }
   }
-  if ($prefetch->{handover}->{'variants::digest'}->{target_count}) {
-    $prefetch->{counts}->{'variants_distinct_match_count'} =   $prefetch->{handover}->{$_.'::_id'}->{target_count}; 
-  }
-
-  return $prefetch;
-
-}
-
-################################################################################
-
-sub aggregate_variants {
-
-  my $prefetch  =   shift;
-  $prefetch->{variantResponses} =   [];
-  
-  if ($prefetch->{handover}->{'variants::digest'}->{target_count} < 1) { 
-    return $prefetch }
-        
-  if ($prefetch->{handover}->{'variants::digest'}->{target_count} > $prefetch->{config}->{max_distinct_variants}) { 
-    $prefetch->{variantResponses} =   $prefetch->{handover}->{'variants::digest'}->{target_values};
-    push(
-      @{$prefetch->{error}},
-      'WARNING: More than '.$prefetch->{config}->{max_distinct_variants}.' distict variants => no variant statistics will be performed and only digests are being listed in "variantResponses".'
-    );
-    return $prefetch;
-  }
-  
-  foreach (@{ $prefetch->{handover}->{'variants::digest'}->{target_values} }) {
-    
-    my $var     =   $prefetch->{db_conn}->get_collection('variants')->find_one( { 'digest' => $_ } );
-    my $parsed  =   {
-      referenceName   =>  $var->{reference_name},
-      start     =>  $var->{start}->[0],
-      referenceBases  =>  $var->{reference_bases},
-      alternateBases  =>  $var->{alternate_bases}->[0],
-      count     =>  $prefetch->{db_conn}->get_collection('variants')->find({ 'digest' => $_ })->count(),
-    };
-    
-    if ($var->{end}->[-1] > $var->{start}->[0]) {
-      $parsed->{end}    =   $var->{end}->[-1] }
-    if ($var->{variant_type} =~ /.../) {
-      $parsed->{variantType}  =   $var->{variant_type} }
-    
-    push(
-      @{ $prefetch->{variantResponses} },
-      $parsed
-    );
-  
-  }
-
+ 
   return $prefetch;
 
 }

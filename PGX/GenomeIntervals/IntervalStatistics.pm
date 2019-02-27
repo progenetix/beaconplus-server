@@ -18,7 +18,14 @@ require Exporter;
 sub plot_segments_add_statusmap {
 
   no warnings 'uninitialized';
-
+  
+  # 
+  my $pgx       =   shift;
+  my $segments  =   shift;
+  
+  if (ref $segments ne 'ARRAY') {
+    $segments   =   $pgx->{segmentdata} }
+  
 =pod
 
 sub "plot_segments_add_statusmap"
@@ -44,7 +51,6 @@ maps:
 
 =cut
 
-  my $pgx       =   shift;
   my $maps      =   {
     intervals   =>  scalar(@{ $pgx->{genomeintervals} }),
     binning     =>  $pgx->{genomeintervals}->[0]->{end} - $pgx->{genomeintervals}->[0]->{start},
@@ -72,7 +78,7 @@ maps:
 
   my $valueMap  =   [ map{[0]} 0..$#{ $pgx->{genomeintervals} } ];
 
-	foreach my $csVar (@{ $pgx->{segmentdata} }) {
+	foreach my $csVar (@{ $segments }) {
 	
 	  if (! grep{ $csVar->{variant_type} eq $_ } keys %intStatLabs) { next }
 

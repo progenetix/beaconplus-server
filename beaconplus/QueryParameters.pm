@@ -1,6 +1,7 @@
 package beaconPlus::QueryParameters;
 
 use Data::Dumper;
+use CGI::Simple;
 require Exporter;
 @ISA    =   qw(Exporter);
 @EXPORT =   qw(
@@ -32,7 +33,6 @@ sub new {
 =cut
 
   my $class     =   shift;
-  my $config    =   shift;
 
   my $self      =   {
     here_path       =>  File::Basename::dirname( eval { ( caller() )[1] } ),
@@ -40,6 +40,7 @@ sub new {
     query_errors    =>  [],
     parameters      =>  {},
     queries         =>  {},
+    cgi             =>  CGI::Simple->new,
   };
 
   bless $self, $class;
@@ -99,13 +100,9 @@ with the conventions of:
 =cut  
 
   my $query     =   shift;
-  
-  my $qstring   =   $ENV{QUERY_STRING}; 
-  $qstring      =~  tr/+/ /;
-  # change hex escapes to the proper characters 
-  $qstring      =~  s/%([0-9A-Fa-f]{2})/chr(hex($1))/eg;
-  foreach (split('\&', $qstring)) {
-    my ($qkey, $qvalue) =   split('=', $_);
+
+  foreach my $qkey ($query->{cgi}->param()) {
+    my $qvalue  =   $query->{cgi}->param($qkey);
     if ($qkey =~ /\w/ && $qvalue =~ /./) {
 # TODO: better fix ...
       if (grep{ $qkey =~ /$_/ } qw(start end)) { $qvalue =~ s/[^\d]//g }
@@ -114,7 +111,7 @@ with the conventions of:
       }    
     } 
   }
-    
+
   return $query;
 
 }
@@ -223,7 +220,7 @@ sub check_variant_params {
   if ($query->{parameters}->{variants}->{reference_name} !~ /^(?:(?:(?:1|2)?\d)|x|y)$/i) {
     push(@{ $query->{query_errors} }, 'ERROR: "referenceName" did not contain a valid value (e.g. "chr17" "8", "X").') }
 
-  if ( $query->{parameters}->{variants}->{variant_type} !~ /^(?:DUP)|(?:DEL)|(?:BND)|(?:CNV)$/ && $query->{parameters}->{variants}->{alternate_bases} !~ /^[ATGCN]+?$/ ) {
+  if ( $query->{parameters}->{variants}->{variant_type} !~ /^(?:DUP)|(?:DEL)|(?:BND)$/ && $query->{parameters}->{variants}->{alternate_bases} !~ /^[ATGCN]+?$/ ) {
     push(@{ $query->{query_errors} }, 'ERROR: There was no valid value for either "alternateBases or variantType".'); }
 
   return $query;
@@ -237,7 +234,7 @@ sub create_variant_query {
 
   my $query     =   shift;
 
-  if ($query->{parameters}->{variants}->{variant_type} =~ /^(?:DUP)|(?:DEL)|(?:CNV)$/i) {
+  if ($query->{parameters}->{variants}->{variant_type} =~ /^D(?:UP)|(?:EL)$/i) {
     $query->create_cnv_query() }
   elsif ($query->{parameters}->{variants}->{variant_type} =~ /^BND$/i) {
     $query->create_bnd_query() }
@@ -347,7 +344,7 @@ Queries with multiple options for the same attribute are treated as logical "OR"
     my @thisQlist;
 
     if (ref $query->{parameters}->{biosamples}->{$qKey} eq 'ARRAY') {
-      foreach (@{ $query->{parameters}->{biosamples}->{$qKey} }) { push(@thisQlist, { $qKey => qr/^(?:pgx\:)?$_/i }) } }
+      foreach (@{ $query->{parameters}->{biosamples}->{$qKey} }) { push(@thisQlist, { $qKey => qr/(?:pgx\:)?$_/i }) } }
     else {
       push(@thisQlist, { $qKey => qr/^$query->{parameters}->{biosamples}->{$qKey}/i }) }  # FIX pgx:
     if (@thisQlist == 1)    { push(@qList, $thisQlist[0]) }
@@ -393,7 +390,7 @@ sub create_biosubset_query {
 
   if (@qList == 1)    { $query->{queries}->{biosubsets} =   $qList[0] }
   elsif (@qList > 1)  { $query->{queries}->{biosubsets} =   { '$and' => \@qList } }
-#print Dumper($query->{queries}->{biosubsets});
+
   return $query;
 
 }
@@ -404,11 +401,9 @@ sub create_datacollection_query {
 
   my $query     =   shift;
   my @qList;
-#print Dumper($query->{parameters}->{datacollections}).'<hr/>';
 
   foreach my $qKey (keys %{ $query->{parameters}->{datacollections} }) {
     my @thisQlist;
-#print Dumper($_);
 
     if (ref $query->{parameters}->{datacollections}->{$qKey} eq 'ARRAY') {
       foreach (@{ $query->{parameters}->{datacollections}->{$qKey} }) { push(@thisQlist, { $qKey => qr/^$_/i }) } }
@@ -420,7 +415,7 @@ sub create_datacollection_query {
 
   if (@qList == 1)    { $query->{queries}->{datacollections} =   $qList[0] }
   elsif (@qList > 1)  { $query->{queries}->{datacollections} =   { '$and' => \@qList } }
-#print Dumper($query->{queries}->{datacollections});
+
   return $query;
 
 }

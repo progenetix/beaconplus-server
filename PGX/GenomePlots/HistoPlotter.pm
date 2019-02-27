@@ -5,8 +5,8 @@ use PGX::GenomePlots::CytobandsPlotter;
 use PGX::GenomePlots::StripPlotter;
 
 require Exporter;
-@ISA        =   qw(Exporter);
-@EXPORT     =   qw(return_histoplot_svg get_histoplot_area);
+@ISA            =   qw(Exporter);
+@EXPORT         =   qw(return_histoplot_svg get_histoplot_area);
 
 ################################################################################
 
@@ -14,25 +14,32 @@ sub return_histoplot_svg {
 
   my $pgx       =   shift;
 
-  $pgx->{Y}    =   $pgx->{parameters}->{size_plotmargin_top_px};
+  $pgx->{svg}   =   q{};
+
+  $pgx->{Y}     =   $pgx->{parameters}->{size_plotmargin_top_px};
   my $plotW             =   $pgx->{parameters}->{size_plotimage_w_px};
-  $pgx->{areastartx}   =   $pgx->{parameters}->{size_plotmargin_px} + $pgx->{parameters}->{size_title_left_px};
-  $pgx->{areawidth}    =   $plotW - ($pgx->{areastartx} + $pgx->{parameters}->{size_plotmargin_px});
+  $pgx->{areastartx}    =   $pgx->{parameters}->{size_plotmargin_px} + $pgx->{parameters}->{size_title_left_px};
+  if (
+    $pgx->{parameters}->{size_clustertree_w_px} < 1
+     ||
+     (scalar @{ $pgx->{clustertree} } < 2)
+  ) { $pgx->{parameters}->{size_clustertree_w_px} = 0 }
+  $pgx->{areawidth} =   $plotW - ($pgx->{areastartx} + $pgx->{parameters}->{size_plotmargin_px} + $pgx->{parameters}->{size_label_right_px} + $pgx->{parameters}->{size_clustertree_w_px});
+;
   if (
     $pgx->{parameters}->{do_chromosomes_proportional} =~ /y/i
     &&
     @{ $pgx->{parameters}->{chr2plot} } == 1
   ) {
-    $pgx->{areawidth}  *=  ($pgx->{referencebounds}->{ $pgx->{parameters}->{chr2plot}->[0] }->[1] / $pgx->{referencebounds}->{ '1' }->[1]);
+    $pgx->{areawidth}   *=  ($pgx->{referencebounds}->{ $pgx->{parameters}->{chr2plot}->[0] }->[1] / $pgx->{referencebounds}->{ '1' }->[1]);
     $plotW      =   $pgx->{areawidth} + 2 * $pgx->{parameters}->{size_plotmargin_px};
   }
-  $pgx->{basepixfrac}  =   ( $pgx->{areawidth} - ($#{ $pgx->{parameters}->{chr2plot} } * $pgx->{parameters}->{size_chromosome_padding_px}) ) / $pgx->{genomesize};
-  $plotW        +=  $pgx->{parameters}->{size_clustertree_w_px};
+  $pgx->{basepixfrac}   =   ( $pgx->{areawidth} - ($#{ $pgx->{parameters}->{chr2plot} } * $pgx->{parameters}->{size_chromosome_padding_px}) ) / $pgx->{genomesize};
   $plotW        +=  $pgx->{parameters}->{size_label_right_px};
-  $pgx->{areaendx}     =   $pgx->{areastartx} + $pgx->{areawidth};
-  $pgx->{areatreex}    =   $pgx->{areaendx};
+  $pgx->{areaendx}  =   $pgx->{areastartx} + $pgx->{areawidth};
+  $pgx->{areatreex} =   $pgx->{areaendx};
   if ($pgx->{parameters}->{size_label_right_px} > 0) {
-    $pgx->{areatreex}  +=  $pgx->{parameters}->{size_chromosome_padding_px} + $pgx->{parameters}->{size_label_right_px} }
+    $pgx->{areatreex}   +=  $pgx->{parameters}->{size_chromosome_padding_px} + $pgx->{parameters}->{size_label_right_px} }
   $pgx->svg_add_title();
   $pgx->svg_add_cytobands();
   $pgx->get_histoplot_area();
@@ -48,10 +55,10 @@ sub return_histoplot_svg {
   }
   $pgx->svg_add_markers();
   $pgx->svg_add_bottom_text();
-  $pgx->{Y}    +=   $pgx->{parameters}->{size_plotmargin_bottom_px};
+  $pgx->{Y}     +=   $pgx->{parameters}->{size_plotmargin_bottom_px};
   my $plotH     =   sprintf "%.0f", $pgx->{Y};
   $plotW        =   sprintf "%.0f", $plotW;
-  $pgx->{svg}  =   '<svg
+  $pgx->{svg}   =   '<svg
 xmlns="http://www.w3.org/2000/svg"
 xmlns:xlink="http://www.w3.org/1999/xlink"
 version="1.1"
@@ -158,12 +165,12 @@ Returns:
     if ($frequencymapsSet->{labels}) { $labels_R = $frequencymapsSet->{labels} }
     # fallback color; defined here for alternation...
     if ($labCol eq $altLabCol) { 
-      $labCol =   $defLabCol }
+      $labCol   =   $defLabCol }
     else { 
-      $labCol =   $altLabCol }
+      $labCol   =   $altLabCol }
     $pgx->svg_add_labels_right($labels_R, $pgx->{parameters}->{size_plotarea_h_px}, $labCol);
 
-    $pgx->{Y}  +=  $pgx->{parameters}->{size_plotarea_h_px};
+    $pgx->{Y}   +=  $pgx->{parameters}->{size_plotarea_h_px};
 
   }
 

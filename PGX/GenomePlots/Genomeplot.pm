@@ -9,8 +9,9 @@ use PGX::GenomePlots::HistoPlotter;
 use PGX::GenomePlots::ArrayPlotter;
 use PGX::GenomePlots::StripPlotter;
 use PGX::GenomePlots::CytobandsPlotter;
-use PGX::FileUtilities::PGXfileReader;
-use PGX::FileUtilities::PGXfileWriter;
+use PGX::IOUtilities::PGXfileReader;
+use PGX::IOUtilities::PGXfileWriter;
+use PGX::IOUtilities::PGXdataAggregation;
 require Exporter;
 @ISA    =   qw(Exporter);
 @EXPORT =   qw(
@@ -18,7 +19,6 @@ require Exporter;
   pgx_add_frequencymaps
   pgx_add_probes_from_file
   pgx_add_segments_from_file
-  pgx_add_segments_from_variants_cnv
   pgx_add_segmentsets_from_samples
   pgx_add_fracbprobes_from_file
   pgx_add_fracbsegments_from_file
@@ -132,9 +132,8 @@ sub pgx_add_frequencymaps {
   $pgx->{frequencymaps}    =   [];
 
   foreach my $csColl (@$csColls) {
-
     $pgx->interval_cnv_frequencies(
-      [ map{$_->{info}->{statusmaps}} @{ $csColl->{statusmapsets} } ],
+      [ map{$_->{statusmaps}} @{ $csColl->{statusmapsets} } ],
       $csColl->{name},
       $csColl->{labels},
     );
@@ -196,40 +195,6 @@ sub pgx_add_segmentsets_from_samples {
       }
     );
 
-  }
-
-  return $pgx;
-
-}
-
-########    ####    ####    ####    ####    ####    ####    ####    ####    ####
-
-sub pgx_add_segments_from_variants_cnv {
-
-=pod
-
-=cut
-
-  my $pgx       =   shift;
-  my $vardata   =   shift;
-  my $callsetId =   shift;
-
-  $pgx->{segmentdata}  =   [];
-
-  foreach my $var (@$vardata) {
-    push(
-      @{$pgx->{segmentdata}},
-      {
-        callset_id      =>  $callsetId,
-        reference_name  =>  $var->{reference_name},
-        start           =>  1 * $var->{start},
-        end             =>  1 * $var->{end},
-        variant_type    =>  $var->{variant_type},
-        info            =>  {
-          value         =>  1 * $var->{info}->{value},
-        },
-      }
-    );
   }
 
   return $pgx;

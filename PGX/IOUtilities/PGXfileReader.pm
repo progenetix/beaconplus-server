@@ -1,11 +1,17 @@
-package PGX::FileUtilities::PGXfileReader;
+package PGX::IOUtilities::PGXfileReader;
 
 use Data::Dumper;
 use Math::Random qw(random_normal);
+use PGX::GenomePlots::PlotParameters;
+use PGX::Helpers::UtilityLibs;
 
 require Exporter;
 @ISA    =   qw(Exporter);
-@EXPORT =   qw(read_probefile read_segmentfile);
+@EXPORT =   qw(
+  read_probefile
+  read_segmentfile
+  read_file_to_split_array
+);
 
 ################################################################################
 
@@ -127,7 +133,7 @@ sub read_segmentfile {
 =pod
 
 Expects:
-  - a standard Progenetix segments  file
+  - a standard tab-delimited Progenetix segments  file
 
   sample  chro  start stop  mean  probes
   GSM481286 1 742429  7883881 -0.1594 699
@@ -172,7 +178,7 @@ Returns:
   $segmentsT    ||= 'segmentdata';
   $pgx->{$segmentsT}  =   [];
 
-  if (! -f $segmentsF) { return $pgx->{$segmentsT} }
+  if (! -f $segmentsF) { return $pgx }
 
   my $numfactor =   1;
   if (
@@ -195,15 +201,15 @@ Returns:
     $colOrder{probes}   =   4;
   };
 
-  open  FILE, "$segmentsF" or die "No file $segmentsF $!";
+  my $table     =   read_file_to_split_array($segmentsF);
+
   my $i         =   0;
-  foreach (<FILE>) {
+  foreach my $segment (@$table) {
     $i++;
-    chomp;
-    my @segment =   split (/\s/, $_, 6);
+    if ($segment->[2] !~ /^\d+?$/) { next }
     my %segVals =   ();
     foreach (keys %colOrder) {
-      $segVals{$_}  =   $segment[$colOrder{$_}];
+      $segVals{$_}  =   $segment->[$colOrder{$_}];
     };
 
     $segVals{callset_id}        =~  s/[^\w\-\,]/_/g;
@@ -231,8 +237,8 @@ Returns:
         no              =>  $i,
         callset_id      =>  $segVals{callset_id},
         reference_name  =>  $segVals{reference_name},
-        start           =>  1 * $segVals{start},
-        end             =>  1 * $segVals{end},
+        start           =>  [ 1 * $segVals{start} ],
+        end             =>  [ 1 * $segVals{end} ],
         info            =>  {
           value         =>  $numfactor * $segVals{value},
           svlen         =>  1 * ($segVals{end} - $segVals{start}),
@@ -264,5 +270,46 @@ Returns:
   return $pgx;
 
 }
+
+################################################################################
+
+sub read_file_to_split_array {
+
+	my $file      =   shift;
+  my $table     =   [];
+
+	if ($file =~ /\.(ods)|(xlsx?)$/i) {
+
+    use	Spreadsheet::Read;
+    use	Spreadsheet::XLSX;
+    use Spreadsheet::ReadSXC;
+
+    my $book			=	  ReadData($file);
+    foreach my $currentRow (Spreadsheet::Read::rows($book->[1])) {
+      push(
+        @$table,
+        $currentRow,
+      );
+    }
+
+	} else {
+
+    my $fContent  =   q{};
+    open	FILE, "$file" or die "No file $file $!";
+    local 	$/;															# no input separator
+    $fContent   =	  <FILE>;
+    close FILE;
+    foreach my $line (split(/\r\n?|\n/, $fContent)) {
+      push(
+        @$table,
+        [ split("\t", $line) ],
+      );
+    }
+	}
+	
+	return	$table;
+
+}
+
 
 1;

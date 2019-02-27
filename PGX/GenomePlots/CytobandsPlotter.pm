@@ -382,7 +382,6 @@ Returns:
 ################################################################################
 ################################################################################
 
-
 sub svg_add_labels_right {
 
   my $pgx       =   shift;
@@ -390,6 +389,7 @@ sub svg_add_labels_right {
   my $thisH     =   shift;
   my $labCol    =   shift;
   
+  if ($pgx->{parameters}->{size_clustertree_w_px} < 1) { return $pgx }
   # adding labels to the right side of the plot
   if ($pgx->{parameters}->{size_label_right_px} > 0) {
     if (@$labels < 1) {
@@ -447,7 +447,7 @@ sub svg_add_cluster_tree {
 		my $yLpix		    =		sprintf "%.1f", $yCorr + $_->{LY} * $yPixF;
 		my $yRpix		    =		sprintf "%.1f", $yCorr + $_->{RY} * $yPixF;
 
-		$pgx->{svg}		.=	'
+		$pgx->{svg} .=	'
 <line x1="'.$xStartLpix.'" y1="'.$yLpix.'" x2="'.$xNodePix.'" y2="'.$yLpix.'" stroke="#666666" />
 <line x1="'.$xStartRpix.'" y1="'.$yRpix.'" x2="'.$xNodePix.'" y2="'.$yRpix.'" stroke="#666666" />
 <line x1="'.$xNodePix.'" y1="'.$yLpix.'" x2="'.$xNodePix.'" y2="'.$yRpix.'" stroke="#666666" />';

@@ -110,7 +110,6 @@ Returns:
 
       if (ref $args->{'-markers'} eq 'ARRAY') {      
         $args->{'-markers'} =   join(',', @{ $args->{'-markers'} }) }
-
       foreach (split(',', $args->{'-markers'})) {
 
         my @markervals  =   split(':', $_);

@@ -1,4 +1,4 @@
-package PGX::FileUtilities::PGXfileWriter;
+package PGX::IOUtilities::PGXfileWriter;
 
 use Data::Dumper;
 
@@ -8,6 +8,7 @@ require Exporter;
   write_svg
   write_probefile
   write_segmentfile
+  write_labelfile
   write_status_matrix
   write_value_matrix
   write_frequency_matrix
@@ -135,6 +136,9 @@ Returns:
 
   my @columnKs  =   qw(sample chro start stop mean probes variant_type);
 
+  if (! $pgx->{segmentdata}) {
+    $pgx->{segmentdata} =  [ map{ @{ $_->{variants} } } @{ $pgx->{samples} } ] }
+
   open  FILE, '>'."$file";
   print FILE join("\t", @columnKs)."\n";
   foreach my $seg (@{ $pgx->{segmentdata} }) {
@@ -142,11 +146,40 @@ Returns:
     print FILE join("\t",
       $seg->{callset_id},
       $seg->{reference_name},
-      $seg->{start},
-      $seg->{end},
+      $seg->{start}->[0],
+      $seg->{end}->[-1],
       $seg->{info}->{value},
       $seg->{info}->{probes},
       $seg->{info}->{variant_type},
+    )."\n";
+  }
+  close FILE;
+
+}################################################################################
+
+sub write_labelfile {
+
+=pod
+
+=cut
+
+########    ####    ####    ####    ####    ####    ####    ####    ####    ####
+
+  my $pgx       =   shift;
+  my $file      =   shift;
+
+  if (! $file) { die "No specification for output $file $!" }
+
+  my @columnKs  =   qw(sample key label color);
+
+  open  FILE, '>'."$file";
+  print FILE join("\t", @columnKs)."\n";
+  foreach my $sample (@{ $pgx->{samples} }) {
+    print FILE join("\t",
+      $sample->{id},
+      $sample->{sortkey},
+      $sample->{sortlabel},
+      $sample->{labels}->[0]->{label_color},
     )."\n";
   }
   close FILE;

@@ -19,10 +19,18 @@ sub return_stripplot_svg {
 
   my $pgx       =   shift;
 
+  $pgx->{svg}   =   q{};
+
   $pgx->{Y}     =   $pgx->{parameters}->{size_plotmargin_top_px};
   my $plotW     =   $pgx->{parameters}->{size_plotimage_w_px};
   $pgx->{areastartx}   =   $pgx->{parameters}->{size_plotmargin_px} + $pgx->{parameters}->{size_title_left_px};
-  $pgx->{areawidth}    =   $plotW - ($pgx->{areastartx} + $pgx->{parameters}->{size_plotmargin_px});
+  if (
+    $pgx->{parameters}->{size_clustertree_w_px} < 1
+     ||
+     (scalar @{ $pgx->{clustertree} } < 2)
+  ) { $pgx->{parameters}->{size_clustertree_w_px} = 0 }
+  $pgx->{areawidth}    =   $plotW - ($pgx->{areastartx} + $pgx->{parameters}->{size_plotmargin_px} + $pgx->{parameters}->{size_label_right_px} + $pgx->{parameters}->{size_clustertree_w_px});
+;
   if (
     $pgx->{parameters}->{do_chromosomes_proportional} =~ /y/i
     &&
@@ -31,8 +39,6 @@ sub return_stripplot_svg {
     $pgx->{areawidth}  *=  ($pgx->{referencebounds}->{ $pgx->{parameters}->{chr2plot}->[0] }->[1] / $pgx->{referencebounds}->{ '1' }->[1]);
     $plotW      =   $pgx->{areawidth} + 2 * $pgx->{parameters}->{size_plotmargin_px};
   }
-  $plotW        +=  $pgx->{parameters}->{size_clustertree_w_px};
-  $plotW        +=  $pgx->{parameters}->{size_label_right_px};
   $pgx->{areaendx}   =   $pgx->{areastartx} + $pgx->{areawidth};
   $pgx->{areatreex}  =   $pgx->{areaendx};
   if ($pgx->{parameters}->{size_label_right_px} > 0) {
@@ -112,7 +118,8 @@ Returns:
   my $altLabCol =   '#fefefe';
   my $labCol    =   '#dddddd';
   
-  my $areaH     =   $pgx->{parameters}->{size_strip_h_px} * @{$pgx->{samples}};
+  my $areaH     =   $pgx->{parameters}->{size_strip_h_px} * @{ $pgx->{samples} };
+
   my $stripArea =   GD::Image->new($pgx->{areawidth}, $areaH, 1);
   my $gdBgCol   =   $stripArea->colorAllocate( @{ hex2rgb($pgx->{parameters}->{color_plotbackground_hex}) } );
   $stripArea->filledRectangle(0, 0, $pgx->{areawidth}, $areaH, $gdBgCol);
@@ -146,7 +153,6 @@ Returns:
       $areaSegs     =   [ grep{ $_->{start}->[0] <= $pgx->{referencebounds}->{$refName}->[1] } @$areaSegs];
       $areaSegs     =   [ grep{ $_->{end}->[-1] >= $pgx->{referencebounds}->{$refName}->[0] } @$areaSegs ];
       foreach my $seg (@$areaSegs) {
-
         if ($seg->{start}->[0] < $pgx->{referencebounds}->{$refName}->[0]) {
           $seg->{start}->[0] = $pgx->{referencebounds}->{$refName}->[0] }
         if ($seg->{end}->[-1] > $pgx->{referencebounds}->{$refName}->[1]) {

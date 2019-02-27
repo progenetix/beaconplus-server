@@ -1,6 +1,6 @@
 #
 ---
-chr2plot: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,'X','Y']
+chr2plot: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,'X']
 genome: 'GRCh38'
 plotid: 'genomeplot'
 plotregions: []
@@ -9,8 +9,9 @@ binning: 1000000
 title: ''
 subtitle: ''
 title_left: ''
-text_bottom_right: '&copy; 2018 progenetix.org'
+text_bottom_right: '&copy; 2019 progenetix.org'
 text_bottom_left: ""
+min_group_no: 1
 
 # array
 cna_gain_threshold: 0.15

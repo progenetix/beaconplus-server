@@ -78,6 +78,14 @@ variants:
 biosamples:
   scope: biosamples
   parameters:
+    id:
+      paramkey: 'biosamples.id'
+      dbkey: 'id'
+      alias:
+        - 'biosamples-id'
+        - 'id'
+      pattern: '^.+?\w+?.+?$'
+      type: array
     biocharacteristics.type.id:
       paramkey: 'biosamples.biocharacteristics.type.id'
       dbkey: 'biocharacteristics.type.id'
@@ -93,8 +101,17 @@ biosamples:
         - 'biosamples-external_references-type-id'
         - 'external_references.type.id'
         - 'external_references-type-id'
-      pattern: '^(\w+[\:$])?\w*?\d(?:[\w\-\.]+?)?'
+      pattern: '^(\w+[\:$])?\w.?(?:[\w\-\.]+?)?'
       type: array
+    provenance.material.type.id:
+      paramkey: 'biosamples.provenance.material.type.id'
+      dbkey: 'provenance.material.type.id'
+      alias:
+        - 'biosamples-provenance-material-type-id'
+        - 'provenance-material-type-id'
+        - 'provenance.material.type.id'
+      pattern: '^EFO\:000965[456]$'
+      type: string
 
 biosubsets:
   scope: biosubsets
