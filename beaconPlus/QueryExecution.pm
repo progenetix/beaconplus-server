@@ -193,6 +193,11 @@ sub execute_aggregate_query {
     $prefetch->{handover}->{$method}->{target_values}  =   $prefetch->{handover}->{$thisM}->{target_values};
     $prefetch->{handover}->{$method}->{target_count}  =   $prefetch->{handover}->{$thisM}->{target_count};
 
+    # getting the distinct variants
+    $thisQ      =   { '_id' => { '$in' => $prefetch->{handover}->{'variants::_id'}->{target_values} } };
+    $thisM      =   'variants::digest';
+    $prefetch->prefetch_data( $thisM, $thisQ );
+
   }
 
 # Up to here, queries against callsets, biosamples and variants have all been reduced to the biosamples::id values.

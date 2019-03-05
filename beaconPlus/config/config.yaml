@@ -49,6 +49,12 @@ handover_types:
     label: "Callsets Variants"
     description: "export all variants of matched callsets - potentially huge dataset..."
     handover_method: 'callsets::_id'
+  progenetixtools:
+    id: 'pgx:handover:progenetixtools'
+    label: "Progenetix Interface"
+    description: "hand the data over to the Progenetix interface for visualization and additional information"
+    handover_method: 'callsets::_id'
+    script_path_web: '/cgi-bin/pgx_process.cgi'
 genome_assemblies:
   - 'GRCh38'
 url: 'https://beacon.progenetix.org/beacon/info/'

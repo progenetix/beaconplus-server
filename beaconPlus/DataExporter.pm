@@ -36,12 +36,21 @@ sub create_handover_exporter {
 
   my $exporter  =   shift;
     
-  foreach (sort keys %{ $exporter->{config}->{handover_types} }) {
+  foreach my $h_o (sort keys %{ $exporter->{config}->{handover_types} }) {
   
-    my $handoverType  =   $exporter->{config}->{handover_types}->{$_};
-    my $handoverPre   =   $exporter->{handover_pre}->{ $handoverType->{handover_method} };
+    my $handoverType  =   $exporter->{config}->{handover_types}->{$h_o};
+    my $handoverMeth  =   $handoverType->{handover_method};
+    my $handoverPre   =   $exporter->{handover_pre}->{ $handoverMeth };
+
     if ($handoverPre->{target_count} < 1) { next }
-  
+
+    my $urlBase =   $exporter->{config}->{url_base};
+    if ($handoverType->{script_path_web} !~ /cgi/) {
+      $handoverType->{script_path_web}  =   '/beaconplus-server/beacondeliver.cgi' }    
+      
+    if ($handoverType->{script_path_web} !~ /beacon/) {
+      $urlBase  =~   s/\/\/beacon\./\/\// }    
+      
     push(
       @{ $exporter->{handover} },
       {
@@ -50,7 +59,7 @@ sub create_handover_exporter {
           label =>  $handoverType->{label}      
         },
         description =>  $handoverType->{description},
-        url     =>  $exporter->{config}->{url_base}.'/beaconplus-server/beacondeliver.cgi?do='.$_.'&accessid='.$handoverPre->{_id},
+        url     =>  $urlBase.$handoverType->{script_path_web}.'?do='.$h_o.'&accessid='.$handoverPre->{_id},
       }
     );
   

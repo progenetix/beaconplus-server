@@ -91,8 +91,8 @@ sub _getDataset {
 
   # Handover:
   my $handover  =   [];
-  my $variantResponses  = [];
-  my $varDistinctCount  =   0;
+  my $varResponses  =   [];
+  my $varDistCount  =   0;
 
 =pod
 
@@ -117,6 +117,7 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
 - e.g. species, sex ...
 
 =cut
+
   my $counts    =   {
     frequency       => 0,
     exists          =>  \0,
@@ -127,18 +128,17 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
   $prefetch->{db_conn}  =   MongoDB::MongoClient->new()->get_database( $prefetch->{dataset} );
   $prefetch->execute_aggregate_query($query);
   
-  ##############################################################################
+  my $varDistCount  =   $prefetch->{handover}->{'variants::digest'}->{target_count};  
 
-  if ($ENV{SERVER_NAME} =~ /test/) { $config->{url_base} =  'http://'.$ENV{SERVER_NAME}}
+  ##############################################################################
 
   my $exporter  =   beaconPlus::DataExporter->new($prefetch);
-  if ($prefetch->{counts}->{'variants_match_count'} > 0) {
+  if ($varDistCount > 0) {
     $exporter->create_handover_exporter();
-    $prefetch->aggregate_variants();
-    $variantResponses =   $prefetch->{variantResponses};
+    $varResponses	=		$prefetch->{handover}->{'variants::digest'}->{target_values};   
   }
 
-  ##############################################################################
+##############################################################################
 
   if ($prefetch->{counts}->{'variants_match_count'} > 0) { $counts->{'exists'} = \1 }
 
@@ -153,7 +153,7 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
     error       =>  $prefetch->{error},
     frequency   =>  $counts->{frequency} * 1,
     variantCount    =>  $prefetch->{counts}->{variants_match_count} * 1,
-    variantResponses    =>  $variantResponses,
+    varResponses    =>  $varResponses,
     callCount   =>  $prefetch->{counts}->{callsets_match_count} * 1,
     sampleCount =>  $prefetch->{counts}->{biosamples_match_count} * 1,
     note        =>  q{},

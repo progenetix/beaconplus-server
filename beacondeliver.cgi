@@ -16,6 +16,8 @@ use Data::Dumper;
 
 # local packages
 use beaconPlus::ConfigLoader;
+use beaconPlus::QueryParameters;
+use beaconPlus::QueryExecution;
 use PGX::GenomeIntervals::IntervalStatistics;
 use PGX::GenomePlots::HistoPlotter;
 use PGX::GenomePlots::Genomeplot;
@@ -28,7 +30,12 @@ Please see the associated beaconresponse.md
 
 =cut
 
+use beaconPlus::ConfigLoader;
+use beaconPlus::QueryParameters;
+use beaconPlus::QueryExecution;
+
 my $config      =   beaconPlus::ConfigLoader->new();
+my $query       =   beaconPlus::QueryParameters->new($config);
 
 # parameters
 my $access_id   =   param('accessid');
@@ -71,28 +78,38 @@ sub _print_histogram {
 
   if ($todo !~ /cnvhistogram/i) { return }
 
-  my $datacoll  =   MongoDB::MongoClient->new()->get_database( $handover->{source_db} )->get_collection( $handover->{target_collection} );
-  my $dataQuery =   { $handover->{target_key} => { '$in' => $handover->{target_values} } };
-  my $cursor	  =		$datacoll->find( $dataQuery )->fields( { 'info' => 1 } );
-  my $callsets	=		[ $cursor->all ];
-  $callsets     =   [ grep{ exists $_->{info}->{statusmaps} } @$callsets ];
+  my $plotargs    =   {
+    -chr2plot     =>   join(',', 1..22),
+    -plotid       =>  'histoplot',
+    -do_plottype  =>  'histogram',
+    -size_plotimage_w_px  =>  800,
+    -size_plotarea_h_px   =>  100,
+    -size_chromosome_w_px =>  12,
+    -size_text_px =>  9,
+    -size_title_left_px   =>   180,
+    -size_text_title_left_px  =>  10,
+  };
 
-  my $plot      =   new PGX::GenomePlots::Genomeplot(
-                      {
-                        -plotid       =>  'histoplot',
-                        -do_plottype  =>  'histogram',
-                        -size_plotimage_w_px  =>  800,
-                        -size_plotarea_h_px   =>  100,
-                        -size_chromosome_w_px =>  12,
-                        -chr2plot     =>  join(',', 1..22),
-                        -text_bottom_left     =>  $handover->{source_db}.': '.scalar(@$callsets).' samples'
-                      }
-                    );
-# print 'Content-type: text'."\n\n";
-# print Dumper([ { statusmapsets =>  $callsets } ] );
-# exit;
-  $plot->pgx_add_frequencymaps( [ { statusmapsets =>  $callsets } ] );
+  foreach my $par (grep{ /^\-\w/ } keys %{ $query->{param} }) {
+    if (grep{$par eq $_ } qw(-chr2plot -markers)) {
+      $plotargs->{$par} =   join(',', @{ $query->{param}->{$par} }) }
+    else {
+      $plotargs->{$par} =   $query->{param}->{$par}->[0] }
+  }
+
+
+  my $pgx         =   new PGX::GenomePlots::Genomeplot($plotargs);
+  $pgx->pgx_open_handover($config, $query);
+  $pgx->pgx_samples_from_accessid($query);
+
+  my $thisargs    =   { map{ $_ => $plotargs->{$_} } keys %{$plotargs} };
+  delete $thisargs->{-size_title_left_px};
+  $thisargs->{-text_bottom_left}    =  $pgx->{handover}->{source_db}.': '.scalar(@{ $pgx->{samples} }).' samples';
+
+  my $plot        =   new PGX::GenomePlots::Genomeplot($thisargs);
+  $plot->pgx_add_frequencymaps( [ { statusmapsets =>  $pgx->{samples} } ] );
   $plot->return_histoplot_svg();
+
 
   print 'Content-type: image/svg+xml'."\n\n";
   print $plot->{svg};
