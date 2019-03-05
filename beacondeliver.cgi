@@ -82,12 +82,6 @@ sub _print_histogram {
     -chr2plot     =>   join(',', 1..22),
     -plotid       =>  'histoplot',
     -do_plottype  =>  'histogram',
-    -size_plotimage_w_px  =>  800,
-    -size_plotarea_h_px   =>  100,
-    -size_chromosome_w_px =>  12,
-    -size_text_px =>  9,
-    -size_title_left_px   =>   180,
-    -size_text_title_left_px  =>  10,
   };
 
   foreach my $par (grep{ /^\-\w/ } keys %{ $query->{param} }) {
