@@ -270,15 +270,18 @@ Returns:
   $pgx->{svg}  .=  '
 <style type="text/css">
 <![CDATA[
-.marker { text-anchor: middle; font-size: '.$pgx->{parameters}->{size_text_marker_px}.'px }
+.marker { text-anchor: middle; font-size: '.$pgx->{parameters}->{marker_text_px}.'px }
 ]]>
 </style>';
 
   my $areaX_0   =   $pgx->{areastartx};
+  my $markerY_0 =   $pgx->{areastarty};
+  if ($pgx->{markerstarty} > 0) {
+    $markerY_0  =   $pgx->{markerstarty} }
 
   # stores the marker line index and the last X value there
   my %markerLineNo      =   (1 => $pgx->{areastartx});
-  my $markerLineHeight  =   $pgx->{parameters}->{size_text_marker_px} + 4;
+  my $markerLineHeight  =   $pgx->{parameters}->{marker_text_px} + 4;
 
   foreach my $refName (@{ $pgx->{parameters}->{chr2plot} }) {
 
@@ -298,13 +301,15 @@ Returns:
       my $mark_X0   =   sprintf "%.1f", $areaX_0 + ($marker->{start} - $pgx->{referencebounds}->{$refName}->[0]) * $pgx->{basepixfrac};
       my $mark_W    =   sprintf "%.2f", ($marker->{end} - $marker->{start}) * $pgx->{basepixfrac};
       if ($mark_W < 0.5) {$mark_W = 0.5}
-      my $mark_H    =   sprintf "%.0f", ($pgx->{Y} - $pgx->{areastarty});
+      my $mark_H    =   sprintf "%.0f", ($pgx->{Y} - $pgx->{markerstarty});
       $pgx->{svg}  .=  '
-<rect x="'.$mark_X0.'" y="'.$pgx->{areastarty}.'" width="'.$mark_W.'" height="'.$mark_H.'" style="fill: '.$marker->{color}.'; fill-opacity: 0.4; " />';
+<rect x="'.$mark_X0.'" y="'.$markerY_0.'" width="'.$mark_W.'" height="'.$mark_H.'" style="fill: '.$marker->{color}.'; fill-opacity: '.$pgx->{parameters}->{marker_opacity}.'; " />';
+
       # adding a text label ####################################################
+
       if ($marker->{label} =~ /\w/) {
 
-        my $mLablen     =   sprintf "%.0f", length($marker->{label}) * $pgx->{parameters}->{size_text_marker_px} * 0.7 + 4;
+        my $mLablen     =   sprintf "%.0f", length($marker->{label}) * $pgx->{parameters}->{marker_text_px} * 0.7 + 4;
         my $mLab_Xcen   =   sprintf "%.1f", $mark_X0 + $mark_W / 2;
         my $mLab_X0     =   $mLab_Xcen - $mLablen / 2;
         my $mLab_Xn     =   $mLab_X0 + $mLablen;
@@ -320,10 +325,11 @@ Returns:
           }
         }
         $pgx->{svg}    .=  '
-<rect x="'.$mLab_X0.'" y="'.$markbox_Y.'" width="'.$mLablen.'" height="'.$markerLineHeight.'" style="fill: '.$marker->{color}.'; fill-opacity: 0.3; " />
+<rect x="'.$mLab_X0.'" y="'.$markbox_Y.'" width="'.$mLablen.'" height="'.$markerLineHeight.'" style="fill: '.$marker->{color}.'; fill-opacity: '.$pgx->{parameters}->{marker_label_opacity}.'; " />
 <text x="'.$mLab_Xcen.'" y="'.$mLab_Y.'" class="marker">'.$marker->{label}.'</text>';
 
       }
+
       # / text label ###########################################################
       
     }
@@ -331,7 +337,7 @@ Returns:
   }
 
   my $maxline   =   (sort { $a <=> $b } keys %markerLineNo)[-1];
-  $pgx->{Y}    +=  $maxline * ($markerLineHeight + 1) - 1;
+  $pgx->{Y}     +=  $maxline * ($markerLineHeight + 1) - 1;
 
   return $pgx;
 

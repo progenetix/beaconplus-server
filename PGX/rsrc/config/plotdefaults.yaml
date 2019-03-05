@@ -1,5 +1,7 @@
 #
 ---
+path_loc: ""
+path_web: ""
 chr2plot: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,'X']
 genome: 'GRCh38'
 plotid: 'genomeplot'
@@ -11,7 +13,7 @@ subtitle: ''
 title_left: ''
 text_bottom_right: '&copy; 2019 progenetix.org'
 text_bottom_left: ""
-min_group_no: 1
+min_group_no: 2
 
 # array
 cna_gain_threshold: 0.15
@@ -82,7 +84,7 @@ plottype_values:
   value_plot_y_max: 100
   label_y_m: [-75,-50,-25,0,25,50,75]
   plot_unit_y: "%"
-  size_title_left_px: 100
+  size_title_left_px: 150
   title_left_rotation: 0
   size_strip_h_px: 20
   size_plotarea_h_px: 120
@@ -104,27 +106,26 @@ size_plotmargin_px: 30
 size_plotmargin_top_px: 25
 size_plotmargin_bottom_px: 25
 size_title_left_px: 0
-size_text_px: 12
+size_text_px: 9
 size_text_title_px: 16
 size_text_subtitle_px: 14
-size_text_title_left_px: 14
+size_text_title_left_px: 10
 size_text_lab_px: 8
-size_text_marker_px: 9
-size_plotarea_h_px: 140
+size_plotarea_h_px: 100
 size_strip_h_px: 7
 size_plotarea_padding: 3
-size_plotimage_w_px: 1600
+size_plotimage_w_px: 800
 size_fracbarea_h_px: 100
 size_label_y_w_px: 25
 size_label_right_px: 0
-size_chromosome_w_px: 16
+size_chromosome_w_px: 12
 size_chromosome_padding_px: 3
 size_samplestrip_w_px: 10
 size_frequencystrip_w_px: 14
 size_matrixline_w_px: 14
 size_segments_stroke_px: 4
 size_centerline_stroke_px: 1
-size_clustertree_w_px: -1
+size_clustertree_w_px: 50
 factor_probedots: 1
 
 # colors
@@ -163,6 +164,11 @@ colorschemas:
   color_var_del_hex: '#33A0FF'
   color_var_amp_hex: '#FF6600'
   color_var_homoloss_hex: '#0033CC'
+  
+# markers
+marker_opacity: 0.4
+marker_label_opacity: 0.3
+marker_text_px: 9
   
 # clustering
 cluster_distance_metric: e

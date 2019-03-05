@@ -24,7 +24,6 @@ Returns:
 
 ########    ####    ####    ####    ####    ####    ####    ####    ####    ####
 
-
   my $pgx       =   shift;
 	my $karyo     =   shift();
 
@@ -65,8 +64,7 @@ Returns:
 	$karyo =~ s/,.*?dmin.*?,/,/g;			# removes dmins
 	$karyo =~ s/inc//g;						    # incomplete label is removed
 
-
-	$karyo =~ s/,trp(.*?),/,dup$1,dup$1,/ig;	# splits multiple occurrences for
+	$karyo =~ s/,trp(.*?),/,dup$1,dup$1,/ig;	# splits multiple occurrences
 
 	$karyo =~ s/,([\w\.\;\-\(\)\+]*?)x(1\-)?2/,$1,$1,/ig;	      # splits multiple occurrences
 	$karyo =~ s/,([\w\.\;\-\(\)\+]*?)x(2\-)?3/,$1,$1,$1,/ig;    # splits multiple occurrences
@@ -96,7 +94,6 @@ Returns:
 	$karyo =~ s/t\(8;14\),/t\(8;14\)\(q24;q32\),/g;
 	$karyo =~ s/t\(8;22\),/t\(8;22\)\(q24;q11\),/g;
 	$karyo =~ s/t\(2;8\),/t\(2;8\)\(p12;q24\),/g;
-
 
 	# marker with 2 translocations, e.g. der(14)t(1;14)(q11;p11)t(8;14)(q24;q32), is split
 	$karyo =~ s/,(der\(\w\d?\))(t\(\w*?\;\w*?\)\([\w\.]*?\;[\w\.]*?\))(t\(\w*?\;\w*?\)\([\w\.]*?\;[\w\.]*?\)),/,$1$2,$1$3,/g;
@@ -358,86 +355,6 @@ Returns:
 #	}
 
 	return $pgx;
-
-}
-
-################################################################################
-########    utility subs    ####    ####    ####    ####    ####    ####    ####
-################################################################################
-
-sub cytoband_to_coordinates {
-
-  my $pgx       =   shift;
-  my $cytoband  =   shift;
-
-  my $coords    =   {};
-  $cytoband     =~  s/^(:?c(:?h(:?r(:?o(:?m(:?o(:?s(:?o(:?m(:?e)?)?)?)?)?)?)?)?)?)?//i;
-  $cytoband     =~  s/[^XY\d\.\p\q]//ig;
-  
-  if ($cytoband =~  /^
-                      ([XY\d]\d?)
-                      (:?(:?p|q)(:?\d(:?\d(:?\.\d(:?\d(:?\d?)?)?)?)?)?)?
-                    $/xi) {
-  
-    my $chro    =   $1;
-    my $bands   =   [ grep{ $_->{label} =~ /^$cytoband/ } @{ $pgx->{cytobands} } ];
-    my @edges   =   sort { $a <=> $b } (map{ $_->{start}, $_->{end} } @$bands);
-    
-    $coords     =   {
-      reference_name  =>  $chro,
-      start     =>  1 * $edges[0],
-      end       =>  1 * $edges[-1],
-      label     =>  $cytoband,
-    };
-  
-  }
-  
-  return $coords;
-
-
-}
-
-################################################################################
-
-sub genome_names_to_grch {
-
-  my $genome    =   $_[0];
-  $genome       =  lc($genome);
-  $genome       =~  s/[^hgrch\d]//g;
-  $genome       =~  s/^(grch\d\d).*?$/$1/;
-  $genome       =~  s/^(hg\d\d).*?$/$1/;
-  my %geNames   =   (
-    hg18        =>  'GRCh36',
-    hg19        =>  'GRCh37',
-    hg38        =>  'GRCh38',
-  );
-
-  if ($genome =~ /^grch\d\d$/) {
-    return $genome }
-  else {
-    return $geNames{$genome} }
-
-}
-
-################################################################################
-
-sub genome_names_to_hg {
-
-  my $genome    =   $_[0];
-  $genome       =   lc($genome);
-  $genome       =~  s/[^hgrch\d]//g;
-  $genome       =~  s/^(grch\d\d).*?$/$1/;
-  $genome       =~  s/^(hg\d\d).*?$/$1/;
-  my %geNames   =   (
-    grch36      =>  'hg18',
-    grch37      =>  'hg19',
-    grch38      =>  'grch38',
-  );
-
-  if ($genome =~ /^hg\d\d$/) {
-    return $genome }
-  else {
-    return $geNames{$genome} }
 
 }
 

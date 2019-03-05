@@ -44,6 +44,7 @@ sub return_histoplot_svg {
   $pgx->svg_add_cytobands();
   $pgx->get_histoplot_area();
   $pgx->svg_add_cluster_tree();
+  $pgx->{markerstarty}  =   $pgx->{areastarty}; # so that markers span the histograms
   if (
     @{ $pgx->{frequencymaps} } > 1
     &&
@@ -159,7 +160,6 @@ Returns:
     # adding a baseline at 0
     $pgx->{svg}    .=  '
   <line x1="'.$pgx->{areastartx}.'"  y1="'.$area_ycen.'"  x2="'.($pgx->{areastartx} + $pgx->{areawidth}).'"  y2="'.$area_ycen.'"  class="cen"  />';
-
 
     my $labels_R    =   [];
     if ($frequencymapsSet->{labels}) { $labels_R = $frequencymapsSet->{labels} }

@@ -21,13 +21,32 @@ require Exporter;
 sub write_svg {
 
   my $pgx       =   shift;
-  my $file      =   shift;
+  my $fileName  =   shift;
  
-  if (! $file) { die "No specification for output $file $!" }
-  open  (FILE, ">", $file) || warn 'output file '.$file.' could not be created.';
+  if (! -d $pgx->{parameters}->{path_loc}) {
+    warn "No specification for output path $pgx->{parameters}->{path_loc} $!";
+    return $pgx;
+  }
+
+  if ($svgName !~ /\.svg$/) {
+    $fileName    =   $pgx->{parameters}->{plotid};    
+    if ($fileName !~ /.../) {
+      $fileName  =   "$^T"."$$" }
+    $fileName    .=  '.svg';
+  }
+      
+  $pgx->{svg_path_loc}  =   $pgx->{parameters}->{path_loc}.'/'.$fileName;
+
+  if ($pgx->{parameters}->{path_web} =~ /./) {
+    $pgx->{svg_path_web}    =   $pgx->{parameters}->{path_web}.'/'.$fileName;
+    $pgx->{svg_html_embed}  =   '<a href="'.$pgx->{svg_path_web}.'" target="_blank"><img src="'.$pgx->{svg_path_web}.'" /></a>';
+  }
+  open  (FILE, ">", $pgx->{svg_path_loc}) || warn 'output file '.$pgx->{svg_path_loc}.' could not be created.';
   binmode(FILE, ":utf8");
   print FILE  $pgx->{svg};
   close FILE;
+  
+  return $pgx;
 
 }
 

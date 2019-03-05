@@ -78,7 +78,6 @@ Returns:
     foreach (keys %{ $plotPars->{plottype_values}->{ $args->{'-plottype'} } }) {
       $plotPars->{$_} =   $plotPars->{plottype_values}->{ $args->{'-plottype'} }->{$_} }
     delete $plotPars->{plottype_values};
-    delete $args->{'-plottype'};
   }
 
   # arguments to parameters
@@ -93,8 +92,6 @@ Returns:
         $args->{'-plotregions'} =   join(',', @{ $args->{'-plotregions'} }) }
 
       foreach my $plotregion (split(',', $args->{'-plotregions'})) {
-
-#print Dumper('pr'.$plotregion);
 
         if ($plotregion =~ /^(?:chro?)?(\w\d?)\:(\d+?)\-(\d+?)$/) {
           my $plotR =   {
@@ -136,10 +133,6 @@ Returns:
     else {
       $plotPars->{$par}   =   $args->{'-'.$par};
     }
-
-    # modified parameters stored in the local yaml defaults are collected here
-    if (grep{ $_ eq $par } @{ $plotPars->{local_overrides} }) {
-      $locDefaults->{$par}  =   $plotPars->{$par} }
 
   }
 

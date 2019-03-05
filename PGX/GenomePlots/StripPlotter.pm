@@ -49,6 +49,7 @@ sub return_stripplot_svg {
   if (! $pgx->{samples}) { $pgx->{samples} = [ $pgx->{segmentdata} ] }
   $pgx->get_stripplot_area_gd();
   $pgx->get_frequencystripplot_area_gd();
+  $pgx->{markerstarty}  =   $pgx->{areastarty}; # so that markers span the histograms
   $pgx->svg_add_cluster_tree();
   $pgx->svg_add_markers();
   $pgx->svg_add_bottom_text();

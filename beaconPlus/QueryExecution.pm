@@ -94,7 +94,7 @@ sub get_base_counts {
 
   $prefetch->{counts}   =   {};
   foreach (qw(callsets biosamples variants)) {
-    $prefetch->{counts}->{$_.'_base_count'}  =   $prefetch->{db_conn}->get_collection($_)->find()->count();
+    $prefetch->{counts}->{$_.'_base_count'}   =   $prefetch->{db_conn}->get_collection($_)->find()->count();
   }
 
   return $prefetch;
@@ -138,6 +138,7 @@ sub execute_aggregate_query {
   ) { return }
 
 # 1. Checking for a callsets query & return iq query but no matches
+
   if (grep{ /.../ } keys %{ $query->{callset_query} } ) {
     $prefetch->prefetch_data( $method, $query->{callset_query} );
     if ($prefetch->{handover}->{$method}->{target_count} < 1) { 
@@ -145,6 +146,7 @@ sub execute_aggregate_query {
   }
   
 # 2. Checking for a biosamples query & return if query but no matches
+
   if (grep{ /.../ } keys %{ $query->{queries}->{biosamples} } ) {
     my $thisM   =   'biosamples::id';
     $prefetch->prefetch_data( $thisM, $query->{queries}->{biosamples} );
@@ -153,6 +155,7 @@ sub execute_aggregate_query {
       return $prefetch }
 # 3. If biosamples matches, retrieve the callset_id values; if there had been 
 #    matches before => intersect through added "$in" query
+
     my $thisQ   =   { 'biosample_id' => { '$in' =>  $prefetch->{handover}->{'biosamples::id'}->{target_values} } };
     if ($prefetch->{handover}->{$method}->{target_count} > 0) {
       $thisQ      =   { '$and' =>
@@ -169,6 +172,7 @@ sub execute_aggregate_query {
 
 # 4. Checking for a variants query; if there had been callset matches before
 #    => intersect through added "$in" query; return iq query but no matches
+
   if (grep{ /.../ } keys %{ $query->{queries}->{variants} } ) {
     my $thisQ   =   $query->{queries}->{variants};
     if ($prefetch->{handover}->{$method}->{target_count} > 0) {
@@ -194,7 +198,7 @@ sub execute_aggregate_query {
     $prefetch->{handover}->{$method}->{target_count}  =   $prefetch->{handover}->{$thisM}->{target_count};
 
     # getting the distinct variants
-    $thisQ      =   { '_id' => { '$in' => $prefetch->{handover}->{'variants::_id'}->{target_values} } };
+    $thisQ      =    { '_id' => { '$in' => $prefetch->{handover}->{'variants::_id'}->{target_values} } };
     $thisM      =   'variants::digest';
     $prefetch->prefetch_data( $thisM, $thisQ );
 

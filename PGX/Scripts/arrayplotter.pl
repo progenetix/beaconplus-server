@@ -10,7 +10,7 @@ This is a utility script for plotting positional genome data:
 
 Examples:
 
-* perl arrayplotter.pl -in ../../in/GSM325151/ -chr2plot 2 -plotregions 2:0-180000000 -markers 2:29332467-29575397:ALK:#ff3300 -factor_probedots 2 -size_text_marker_px 14
+* perl arrayplotter.pl -in ../../in/GSM325151/ -chr2plot 2 -plotregions 2:0-180000000 -markers 2:29332467-29575397:ALK:#ff3300 -factor_probedots 2 -marker_text_px 14
 
 
 =cut
