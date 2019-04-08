@@ -12,8 +12,8 @@ use MongoDB;
 use MongoDB::MongoClient;
 use Data::Dumper;
 
-use beaconPlus::ConfigLoader;
-my $config      =   beaconPlus::ConfigLoader->new();
+use BeaconPlus::ConfigLoader;
+my $config      =   BeaconPlus::ConfigLoader->new();
 my $querytype   =   param('querytype');
 my $autoc       =   param('autocomplete');
 my $datasets    =   [ param('datasetIds') ];

@@ -15,9 +15,9 @@ $MongoDB::Cursor::timeout = 120000;
 use Data::Dumper;
 
 # local packages
-use beaconPlus::ConfigLoader;
-use beaconPlus::QueryParameters;
-use beaconPlus::QueryExecution;
+use BeaconPlus::ConfigLoader;
+use BeaconPlus::QueryParameters;
+use BeaconPlus::QueryExecution;
 use PGX::GenomeIntervals::IntervalStatistics;
 use PGX::GenomePlots::HistoPlotter;
 use PGX::GenomePlots::Genomeplot;
@@ -30,12 +30,12 @@ Please see the associated beaconresponse.md
 
 =cut
 
-use beaconPlus::ConfigLoader;
-use beaconPlus::QueryParameters;
-use beaconPlus::QueryExecution;
+use BeaconPlus::ConfigLoader;
+use BeaconPlus::QueryParameters;
+use BeaconPlus::QueryExecution;
 
-my $config      =   beaconPlus::ConfigLoader->new();
-my $query       =   beaconPlus::QueryParameters->new($config);
+my $config      =   BeaconPlus::ConfigLoader->new();
+my $query       =   BeaconPlus::QueryParameters->new($config);
 
 # parameters
 my $access_id   =   param('accessid');

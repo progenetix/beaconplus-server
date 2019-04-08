@@ -4,3 +4,6 @@
 [submodule "PGX"]
 	path = PGX
 	url = https://github.com/progenetix/PGX
+[submodule "BeaconPlus"]
+	path = BeaconPlus
+	url = https://github.com/progenetix/BeaconPlus

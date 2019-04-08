@@ -16,12 +16,12 @@ $MongoDB::Cursor::timeout = 36000;
 
 use Data::Dumper;
 
-use beaconPlus::ConfigLoader;
-use beaconPlus::QueryParameters;
-use beaconPlus::QueryExecution;
-use beaconPlus::DataExporter;
+use BeaconPlus::ConfigLoader;
+use BeaconPlus::QueryParameters;
+use BeaconPlus::QueryExecution;
+use BeaconPlus::DataExporter;
 
-my $config      =   beaconPlus::ConfigLoader->new();
+my $config      =   BeaconPlus::ConfigLoader->new();
 my $datasets    =   [ param('datasetIds') ];
 if ($datasets->[0] =~ /\w\w\w/) {
   $config->{ dataset_names }  =   [];
@@ -43,7 +43,7 @@ https://beacon.progenetix.test/beaconplus-server/beaconresponse.cgi/?datasetIds=
 
 if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
  
-my $query       =   beaconPlus::QueryParameters->new($config);
+my $query       =   BeaconPlus::QueryParameters->new($config);
 #print Dumper($query);
 ################################################################################
 
@@ -123,7 +123,7 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
     exists          =>  \0,
   };
 
-  my $prefetch  =   beaconPlus::QueryExecution->new($config);
+  my $prefetch  =   BeaconPlus::QueryExecution->new($config);
   $prefetch->{dataset}  =   $dataset;
   $prefetch->{db_conn}  =   MongoDB::MongoClient->new()->get_database( $prefetch->{dataset} );
   $prefetch->execute_aggregate_query($query);
@@ -132,7 +132,7 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
 
   ##############################################################################
 
-  my $exporter  =   beaconPlus::DataExporter->new($prefetch);
+  my $exporter  =   BeaconPlus::DataExporter->new($prefetch);
   if ($varDistCount > 0) {
     $exporter->create_handover_exporter();
     $varResponses	=		$prefetch->{handover}->{'variants::digest'}->{target_values};   
