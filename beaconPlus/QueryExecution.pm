@@ -94,9 +94,8 @@ sub get_base_counts {
 
   $prefetch->{counts}   =   {};
   foreach (qw(callsets biosamples variants)) {
-    $prefetch->{counts}->{$_.'_base_count'}   =   $prefetch->{db_conn}->get_collection($_)->find()->count();
+    $prefetch->{counts}->{$_.'_base_count'}   =   $prefetch->{db_conn}->get_collection($_)->count();
   }
-
   return $prefetch;
 
 }

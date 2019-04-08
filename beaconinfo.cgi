@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# © 2000-2018 Michael Baudis: m@baud.is
+# © 2000-2019 Michael Baudis: m@baud.is
 
 use strict;
 use CGI::Carp qw(fatalsToBrowser);
@@ -14,7 +14,6 @@ use Data::Dumper;
 
 use beaconPlus::ConfigLoader;
 my $config      =   beaconPlus::ConfigLoader->new();
-
 my $querytype   =   param('querytype');
 my $autoc       =   param('autocomplete');
 my $datasets    =   [ param('datasetIds') ];
@@ -119,7 +118,7 @@ foreach my $datasetId ( @{ $config->{ dataset_names }}) {
 $beaconInfo->{supportedRefs}  =   $config->{ genome_assemblies };
 
 if ($querytype =~ /ontologyid|referenceid/) {
-  $beaconInfo  =   [ map{ $ontologyIds->{$_} } sort keys %{ $ontologyIds } ] }
+  $beaconInfo  =   [ map{ $ontologyIds->{$_} } (grep{ /[^\-\+]/ } sort keys %{ $ontologyIds } )] }
 
 if ($autoc =~ /1|y/i) {
   print param('callback').'({"data":['.join(',', (map{ JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode($_) } @$beaconInfo )).']});'."\n" }

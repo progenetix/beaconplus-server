@@ -102,11 +102,12 @@ with the conventions of:
   my $query     =   shift;
 
   foreach my $qkey ($query->{cgi}->param()) {
-    my $qvalue  =   $query->{cgi}->param($qkey);
-    if ($qkey =~ /\w/ && $qvalue =~ /./) {
+
+    my @qvalues =   $query->{cgi}->param($qkey);
+    if ($qkey =~ /\w/ && grep{ /./}  @qvalues) {
+      foreach my $val (grep{ /[\w\*\.]/} split(',', join(',', @qvalues))) {
 # TODO: better fix ...
-      if (grep{ $qkey =~ /$_/ } qw(start end)) { $qvalue =~ s/[^\d]//g }
-      foreach my $val (grep{ /[\w\*\.]/} split(',', $qvalue)) {
+       if (grep{ $qkey =~ /$_/ } qw(start end)) { $val =~ s/[^\d]//g }
         push(@{ $query->{param}->{$qkey} }, $val);
       }    
     } 
@@ -342,7 +343,6 @@ Queries with multiple options for the same attribute are treated as logical "OR"
 
   foreach my $qKey (keys %{ $query->{parameters}->{biosamples} }) {
     my @thisQlist;
-
     if (ref $query->{parameters}->{biosamples}->{$qKey} eq 'ARRAY') {
       foreach (@{ $query->{parameters}->{biosamples}->{$qKey} }) { push(@thisQlist, { $qKey => qr/(?:pgx\:)?$_/i }) } }
     else {

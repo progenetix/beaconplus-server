@@ -124,7 +124,7 @@ biosubsets:
         - 'biosubsets.biocharacteristics.type.id'
         - 'biocharacteristics.type.id'
         - 'biocharacteristics-type-id'
-      pattern: '^\w+[\:$]?(?:[\w\-\.]+?)?'
+      pattern: '^\w+[\:$]?(?:[\w\-\.]+?\+?)?'
       type: array
 
 datacollections:
