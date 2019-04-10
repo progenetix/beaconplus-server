@@ -2,7 +2,7 @@
 
 # Progenetix & arrayMap site scripts
 # Beacon+ server implementation based on arraymap.org | progenetix.org data
-# © 2000-2018 Michael Baudis: m@baud.is
+# © 2000-2019 Michael Baudis: m@baud.is
 
 use strict;
 use CGI::Carp qw(fatalsToBrowser);

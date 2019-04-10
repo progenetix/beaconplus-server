@@ -18,9 +18,9 @@ use Data::Dumper;
 use BeaconPlus::ConfigLoader;
 use BeaconPlus::QueryParameters;
 use BeaconPlus::QueryExecution;
-use PGX::GenomeIntervals::IntervalStatistics;
-use PGX::GenomePlots::HistoPlotter;
-use PGX::GenomePlots::Genomeplot;
+
+use lib './PGX';
+use PGX;
 
 =pod
 
@@ -92,7 +92,7 @@ sub _print_histogram {
   }
 
 
-  my $pgx         =   new PGX::GenomePlots::Genomeplot($plotargs);
+  my $pgx         =   new PGX($plotargs);
   $pgx->pgx_open_handover($config, $query);
   $pgx->pgx_samples_from_accessid($query);
 
@@ -100,7 +100,7 @@ sub _print_histogram {
   delete $thisargs->{-size_title_left_px};
   $thisargs->{-text_bottom_left}    =  $pgx->{handover}->{source_db}.': '.scalar(@{ $pgx->{samples} }).' samples';
 
-  my $plot        =   new PGX::GenomePlots::Genomeplot($thisargs);
+  my $plot        =   new PGX($thisargs);
   $plot->pgx_add_frequencymaps( [ { statusmapsets =>  $pgx->{samples} } ] );
   $plot->return_histoplot_svg();
 
