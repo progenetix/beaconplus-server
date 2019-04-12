@@ -44,7 +44,6 @@ https://beacon.progenetix.test/beaconplus-server/beaconresponse.cgi/?datasetIds=
 if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
  
 my $query       =   BeaconPlus::QueryParameters->new($config);
-#print Dumper($query);
 ################################################################################
 
 my $datasetR    =   [];
