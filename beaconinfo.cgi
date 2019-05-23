@@ -96,11 +96,15 @@ foreach my $datasetId ( @{ $config->{ dataset_names }}) {
   if ($querytype  =~ /referenceid/) {
     $collName  =   'datacollections' }
 
-  my $cursor    =   $dbconn->get_collection($collName)->find( $biosQ )->fields({ id => 1, label => 1, count => 1, _id => 0});
+  my $cursor    =   $dbconn->get_collection($collName)->find( $biosQ )->fields({ id => 1, label => 1, child_terms => 1, count => 1, _id => 0});
   my @subsets   =   $cursor->all;
   foreach my $sub (@subsets) {
     $sub->{label_short}   =  $sub->{label};
     $sub->{label_short}   =~ s/^(.{20,45}?)[\s\,].*?$/$1.../;
+    if ($sub->{id} =~ /\+$/) {
+    	$sub->{child_terms}	=	join(',', grep{ $_ !~ /\+/ } @{ $sub->{child_terms} }) }
+   	else {
+   		$sub->{child_terms} =  $sub->{id} }
     $ontologyIds->{ $sub->{id} }  =   $sub;
   }
 

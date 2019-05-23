@@ -30,13 +30,13 @@ Please see the associated beaconresponse.md
 
 =cut
 
-use BeaconPlus::ConfigLoader;
-use BeaconPlus::QueryParameters;
-use BeaconPlus::QueryExecution;
+
+#print 'Content-type: text'."\n\n";
+
+
 
 my $config      =   BeaconPlus::ConfigLoader->new();
-my $query       =   BeaconPlus::QueryParameters->new($config);
-
+my $query       =   BeaconPlus::QueryParameters->new();
 my $error				=		q{};
 
 if ($query->{param}->{accessid}->[0]  =~  /[^\w\-]/) {
@@ -76,15 +76,38 @@ exit;
 
 sub _print_histogram {
 
-  if ($query->{param}->{do}->[0] !~ /cnvhistogram/i) { return }
+  if ($query->{param}->{do}->[0] !~ /histo/i) { return }
 
-  $query->{param}->{-chr2plot}  ||=   [1..22];
   $query->{param}->{-plotid}		=		'histoplot';
-  $query->{param}->{-text_bottom_left} =  $handover->{source_db}.': '.$handover->{target_count}.' samples';
+  $query->{param}->{-text_bottom_left} 	=  $handover->{source_db}.': '.$handover->{target_count}.' samples';
   
   my $pgx       =   new PGX($query->{param});
+  $pgx->pgx_open_handover($config, $query->{param}->{accessid}->[0]);
+	$pgx->pgx_samples_from_handover();
+  $pgx->pgx_add_frequencymaps( [ { statusmapsets =>  $pgx->{samples} } ] );
+  $pgx->return_histoplot_svg();
+
+  print 'Content-type: image/svg+xml'."\n\n";
+  print $pgx->{svg};
+  exit;
+
+}
+
+################################################################################
+
+sub _print_array {
+
+  if ($query->{param}->{do}->[0] !~ /array/i) { return }
+
+	my $plotargs    =   { map{ $_ => join(',', @{ $query->{param}->{$_} }) } (grep{ /^\-\w+?$/ } keys %{ $query->{param} }) };
+	$plotargs->{-plotid}			=	 'arrayplot';
+	$plotargs->{-plottype}		=	 'array';
+  
+  my $pgx       =   new PGX($plotargs);
+
   $pgx->pgx_open_handover($config, $query);
   $pgx->pgx_samples_from_accessid($query);
+  $pgx->{parameters}->{text_bottom_left} 	=  $pgx->{samples}->[0]->{id};
   $pgx->pgx_add_frequencymaps( [ { statusmapsets =>  $pgx->{samples} } ] );
   $pgx->return_histoplot_svg();
 

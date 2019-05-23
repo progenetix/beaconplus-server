@@ -7,28 +7,16 @@
 use strict;
 use CGI::Carp qw(fatalsToBrowser);
 use CGI qw(param);
-
-use File::Basename;
+use Data::Dumper;
 use JSON;
 use MongoDB;
 use MongoDB::MongoClient;
 $MongoDB::Cursor::timeout = 36000;
 
-use Data::Dumper;
-
 use BeaconPlus::ConfigLoader;
 use BeaconPlus::QueryParameters;
 use BeaconPlus::QueryExecution;
 use BeaconPlus::DataExporter;
-
-my $config      =   BeaconPlus::ConfigLoader->new();
-my $datasets    =   [ param('datasetIds') ];
-if ($datasets->[0] =~ /\w\w\w/) {
-  $config->{ dataset_names }  =   [];
-  foreach (grep{ /\w\w\w/ } @$datasets) {
-    push(@{ $config->{ dataset_names } }, $_);
-  }
-}
 
 =pod
 
@@ -43,7 +31,9 @@ https://beacon.progenetix.test/beaconplus-server/beaconresponse.cgi/?datasetIds=
 
 if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
  
-my $query       =   BeaconPlus::QueryParameters->new($config);
+my $config      =   BeaconPlus::ConfigLoader->new();
+my $query       =   BeaconPlus::QueryParameters->new();
+
 ################################################################################
 
 my $datasetR    =   [];
@@ -86,12 +76,10 @@ sub _getDataset {
 
   my $dataset   =   shift;
 
- ##############################################################################
-
   # Handover:
   my $handover  =   [];
-  my $varResponses  =   [];
-  my $varDistCount  =   0;
+  my $varResp  	=   [];
+  my $varDistNo =   0;
 
 =pod
 
@@ -118,23 +106,21 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
 =cut
 
   my $counts    =   {
-    frequency       => 0,
-    exists          =>  \0,
+    frequency   => 0,
+    exists      =>  \0,
   };
 
-  my $prefetch  =   BeaconPlus::QueryExecution->new($config);
-  $prefetch->{dataset}  =   $dataset;
-  $prefetch->{db_conn}  =   MongoDB::MongoClient->new()->get_database( $prefetch->{dataset} );
+  my $prefetch  =   BeaconPlus::QueryExecution->new($config, $dataset);
   $prefetch->execute_aggregate_query($query);
   
-  my $varDistCount  =   $prefetch->{handover}->{'variants::digest'}->{target_count};  
+  my $varDistNo  =   $prefetch->{handover}->{'variants::digest'}->{target_count};  
 
   ##############################################################################
 
   my $exporter  =   BeaconPlus::DataExporter->new($prefetch);
-  if ($varDistCount > 0) {
+  if ($varDistNo > 0) {
     $exporter->create_handover_exporter();
-    $varResponses	=		$prefetch->{handover}->{'variants::digest'}->{target_values};   
+    $varResp		=		$prefetch->{handover}->{'variants::digest'}->{target_values};   
   }
 
 ##############################################################################
@@ -152,7 +138,7 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
     error       =>  $prefetch->{error},
     frequency   =>  $counts->{frequency} * 1,
     variantCount    =>  $prefetch->{counts}->{variants_match_count} * 1,
-    varResponses    =>  $varResponses,
+    varResp    =>  $varResp,
     callCount   =>  $prefetch->{counts}->{callsets_match_count} * 1,
     sampleCount =>  $prefetch->{counts}->{biosamples_match_count} * 1,
     note        =>  q{},
