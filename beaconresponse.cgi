@@ -30,16 +30,15 @@ https://beacon.progenetix.test/beaconplus-server/beaconresponse.cgi/?datasetIds=
 #print 'Content-type: text'."\n\n";
 
 if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
- 
+
 my $config      =   BeaconPlus::ConfigLoader->new();
-my $query       =   BeaconPlus::QueryParameters->new();
 
 ################################################################################
 
 my $datasetR    =   [];
-if (! grep{ /ERROR/i } @{ $query->{query_errors} }) {
+if (! grep{ /ERROR/i } @{ $config->{query_errors} }) {
   foreach (@{ $config->{ dataset_names } }) {
-    push(@$datasetR, _getDataset($_) );
+    push(@$datasetR, _getDataset($config, $_) );
   }
 }
 
@@ -48,7 +47,7 @@ if (grep{ $_->{exists} } @$datasetR) { $bcExists = \1 }
 my $response    =   {
   beaconId      =>  $config->{beacon_id},
   exists        =>  $bcExists,
-  alleleRequest =>  $query->{pretty_params},
+  alleleRequest =>  $config->{pretty_params},
   apiVersion    =>  $config->{api_version},
   url           =>  $config->{url},
   datasetAlleleResponses    =>   $datasetR,
@@ -74,6 +73,7 @@ sub _getDataset {
 
 =cut
 
+  my $config    =   shift;
   my $dataset   =   shift;
 
   # Handover:
@@ -111,16 +111,16 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
   };
 
   my $prefetch  =   BeaconPlus::QueryExecution->new($config, $dataset);
-  $prefetch->execute_aggregate_query($query);
-  
-  my $varDistNo  =   $prefetch->{handover}->{'variants::digest'}->{target_count};  
+  $prefetch->execute_aggregate_query();
+
+  my $varDistNo  =   $prefetch->{handover}->{'variants::digest'}->{target_count};
 
   ##############################################################################
 
-  my $exporter  =   BeaconPlus::DataExporter->new($prefetch);
+  my $exporter  =   BeaconPlus::DataExporter->new($config, $prefetch);
   if ($varDistNo > 0) {
     $exporter->create_handover_exporter();
-    $varResp		=		$prefetch->{handover}->{'variants::digest'}->{target_values};   
+    $varResp		=		$prefetch->{handover}->{'variants::digest'}->{target_values};
   }
 
 ##############################################################################
