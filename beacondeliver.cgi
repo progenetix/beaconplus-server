@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 # Beacon+ support scripts
-# © 2017-20018 Michael Baudis: m@baud.is
+# © 2017-2019 Michael Baudis: m@baud.is
 
 use strict;
 use CGI::Carp qw(fatalsToBrowser);
@@ -22,46 +22,52 @@ use BeaconPlus::QueryExecution;
 use lib './PGX';
 use PGX;
 
-=pod
+=markdown
+The __BeaconHandover__ is a utility server side application to provide 
+__h-&gt;o__ functionality to the _BeaconPlus_ environment.
 
-Script for linking callset ids from Beacon+ query to the original data
+The script accepts following parameters:
 
-Please see the associated beaconresponse.md
+* `accessid`
+    - the `_id` of an entry in the `___handover_db___.___handover_coll___` 
+    database, which in the standard implementation stores pointers to the 
+    results from a _BeaconPlus_ query
+* `do`
+    - an action from `handover_types`
+* `jsonpretty`
+    - formatting instruction for JSON style
+    - defaults to '0', i.e. no line breaks etc.
+    - values of 1 or y or pretty will provide an formatted return
 
 =cut
 
-
-#print 'Content-type: text'."\n\n";
-
-
-
 my $config      =   BeaconPlus::ConfigLoader->new();
-my $query       =   BeaconPlus::QueryParameters->new();
 my $error				=		q{};
+our $handover		=		{};
+my $pretty     	=   $config->{param}->{jsonpretty}->[0];
+if ($pretty !~ /^1|y|pretty/) {
+  $pretty       =   0 }
+else {
+  $pretty       =   1 }
 
-if ($query->{param}->{accessid}->[0]  =~  /[^\w\-]/) {
-  print 'Content-type: text'."\n\n";
-  $error				= '¡Wrong access_id parameter '.$query->{param}->{accessid}->[0].'!' }
-elsif ($query->{param}->{accessid}->[0]  !~  /\w/) {
-  $error				= '¡Missing access_id parameter!' }
+
+if (! grep{ /../ } keys %{ $config->{queries}->{handover} }) { 
+  $error				= '¡ Wrong or missing access_id parameter !' }
+
+if (! grep{ $config->{param}->{do}->[0] eq $_ } keys %{ $config->{handover_types} }) { 
+  $error				= '¡ Wrong or missing "do" parameter !' }
+
+if ($error  !~  /\w/) {
+	$handover 		=    MongoDB::MongoClient->new()->get_database( $config->{handover_db} )->get_collection( $config->{handover_coll} )->find_one( $config->{queries}->{handover} ) }
+
+if (! $handover->{_id} ) { 
+  $error				= '¡ No handover object found !' }
+
 
 if ($error  =~  /\w/) {
   print 'Content-type: text'."\n\n".$error;
   exit;
 }
-
-my $pretty     	=   $query->{param}->{jsonpretty}->[0];
-if ($pretty !~ /^1|y/) {
-  $pretty       =   0 }
-else {
-  $pretty       =   1 }
-
-################################################################################
-
-our $handover   =    MongoDB::MongoClient->new()->get_database( $config->{handover_db} )->get_collection( $config->{handover_coll} )->find_one( { _id	=>  $query->{param}->{accessid}->[0] } );
-
-# print 'Content-type: text'."\n\n".Dumper($handover->{target_count});
-#exit;
 
 _print_histogram();
 _export_callsets();
@@ -76,13 +82,13 @@ exit;
 
 sub _print_histogram {
 
-  if ($query->{param}->{do}->[0] !~ /histo/i) { return }
+  if ($config->{param}->{do}->[0] !~ /histo/i) { return }
 
-  $query->{param}->{-plotid}		=		'histoplot';
-  $query->{param}->{-text_bottom_left} 	=  $handover->{source_db}.': '.$handover->{target_count}.' samples';
+  $config->{param}->{-plotid}		=		'histoplot';
+  $config->{param}->{-text_bottom_left} 	=  $handover->{source_db}.': '.$handover->{target_count}.' samples';
   
-  my $pgx       =   new PGX($query->{param});
-  $pgx->pgx_open_handover($config, $query->{param}->{accessid}->[0]);
+  my $pgx       =   new PGX($config->{param});
+  $pgx->pgx_open_handover($config, $config->{param}->{accessid}->[0]);
 	$pgx->pgx_samples_from_handover();
   $pgx->pgx_add_frequencymaps( [ { statusmapsets =>  $pgx->{samples} } ] );
   $pgx->return_histoplot_svg();
@@ -97,16 +103,17 @@ sub _print_histogram {
 
 sub _print_array {
 
-  if ($query->{param}->{do}->[0] !~ /array/i) { return }
+# TODO ...
 
-	my $plotargs    =   { map{ $_ => join(',', @{ $query->{param}->{$_} }) } (grep{ /^\-\w+?$/ } keys %{ $query->{param} }) };
-	$plotargs->{-plotid}			=	 'arrayplot';
-	$plotargs->{-plottype}		=	 'array';
+  if ($config->{param}->{do}->[0] !~ /array/i) { return }
+
+	my $plotargs    =   { map{ $_ => join(',', @{ $config->{param}->{$_} }) } (grep{ /^\-\w+?$/ } keys %{ $config->{param} }) };
+	$config->{param}->{-plotid}			=	 'arrayplot';
+	$config->{param}->{-plottype}		=	 'array';
   
-  my $pgx       =   new PGX($plotargs);
-
-  $pgx->pgx_open_handover($config, $query);
-  $pgx->pgx_samples_from_accessid($query);
+  my $pgx       =   new PGX($config->{param});
+  $pgx->pgx_open_handover($config, $config->{param}->{accessid}->[0]);
+	$pgx->pgx_samples_from_handover();
   $pgx->{parameters}->{text_bottom_left} 	=  $pgx->{samples}->[0]->{id};
   $pgx->pgx_add_frequencymaps( [ { statusmapsets =>  $pgx->{samples} } ] );
   $pgx->return_histoplot_svg();
@@ -121,7 +128,7 @@ sub _print_array {
 
 sub _export_callsets {
 
-  if ($query->{param}->{do}->[0] !~ /callsetsdata/i) { return }
+  if ($config->{param}->{do}->[0] !~ /callsetsdata/i) { return }
 
   print 'Content-type: application/json'."\n\n";
 
@@ -139,7 +146,7 @@ sub _export_callsets {
 sub _export_biosamples_individuals {
 
 
-  if (! grep{ /^$query->{param}->{do}->[0]$/ } qw(biosamplesdata individualsdata)) { return }
+  if (! grep{ /^$config->{param}->{do}->[0]$/ } qw(biosamplesdata individualsdata)) { return }
 
   print 'Content-type: application/json'."\n\n";
 
@@ -157,7 +164,7 @@ sub _export_biosamples_individuals {
 
 sub _export_variants {
 
-  if ($query->{param}->{do}->[0] !~ /variants/i) { return }
+  if ($config->{param}->{do}->[0] !~ /variants/i) { return }
   print 'Content-type: application/json'."\n\n";
 
   my $dataconn  =   MongoDB::MongoClient->new()->get_database( $handover->{source_db} );
@@ -166,7 +173,7 @@ sub _export_variants {
 
   my $key       =   $handover->{target_key};
   my $values    =   $handover->{target_values};
-  if ($query->{param}->{do}->[0] =~ /callset/i) { 
+  if ($config->{param}->{do}->[0] =~ /callset/i) { 
     $key        =   'callset_id';
     my $distincts =   $dataconn->run_command([
                       "distinct"=>  'callsets',

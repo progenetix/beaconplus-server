@@ -18,13 +18,26 @@ use BeaconPlus::QueryParameters;
 use BeaconPlus::QueryExecution;
 use BeaconPlus::DataExporter;
 
-=pod
+=markdown
+The "beaconresponse.cgi" script is a server backend for the Beacon protocol,
+specifically adapted to connect to _MongoDB_ database backends that adhere to
+the core GA4GH model.
 
-Please see the associated beaconresponse.md
+#### Example Queries
 
-https://beacon.progenetix.test/beaconplus-server/beaconresponse.cgi?datasetIds=arraymap&referenceName=9&assemblyId=GRCh38&variantType=DEL&startMin=19,500,000&startMax=21,975,098&endMin=21,967,753&endMax=24,500,000&referenceBases=N&biosamples.biocharacteristics.type.id=ncit:C3224
-https://beacon.progenetix.test/beaconplus-server/beaconresponse.cgi/?datasetIds=arraymap&referenceName=9&assemblyId=GRCh38&variantType=DEL&startMin=19,500,000&startMax=21,975,098&endMin=21,967,753&endMax=24,500,000&referenceBases=N&biosamples.biocharacteristics.type.id=icdom-94003
-
+* <https://beacon.progenetix.org/cgi-bin/beaconresponse.cgi?datasetIds=arraymap&datasetIds=progenetix&referenceName=9&assemblyId=GRCh38&variantType=DEL&startMin=19500000&startMax=21975098&endMin=21967753&endMax=24500000&referenceBases=N&filters=ncit:C3224>
+    - focal deletions in the CDKN2A locus, filtered for "ncit:C3224" (Melanoma)
+    - this query ia against 2 datasets (progenetix, arraymap)
+    - *this query puts some serious strain on the server!*
+* <https://beacon.progenetix.org/cgi-bin/beaconresponse.cgi/?datasetIds=arraymap&referenceName=9&assemblyId=GRCh38&variantType=DEL&startMin=19500000&startMax=21975098&endMin=21967753&endMax=24500000&referenceBases=N&filters=icdom-94003>
+    - as above, but using "icdom-94003", the internal code for ICD-O 3 "9400/3" (Glioblastoma, NOS)
+* <https://beacon.progenetix.org/beaconplus-server/beaconresponse.cgi?datasetIds=dipg&referenceName=17&assemblyId=GRCh38&startMin=7572826&endMax=7579005&referenceBases=*&alternateBases=N&filters=icdot-C71.7&>
+    - wildcard range query for allelic variants on chromosome 17, between bases 7572826 and 7579005
+    - dataset "dipg"
+    - Since the current specification requires a `alternateBases` parameter, and doesn't include wildcards *but* allows "N", the query will __only__ return variants where the replacement has a length of 1. "NN" leads to 2 etc. This may be changed in future versions of the protocol.
+* <https://beacon.progenetix.org/beaconplus-server/beaconresponse.cgi?datasetIds=dipg&referenceName=17&assemblyId=GRCh38&start=7577121&referenceBases=G&alternateBases=A&filters=icdot-C71.7&>
+		- the "traditional" precise BeaconAlleleRequest, as supported by the first Beacon version
+    - dataset "dipg"
 =cut
 
 #print 'Content-type: text'."\n\n";
@@ -47,10 +60,20 @@ if (grep{ $_->{exists} } @$datasetR) { $bcExists = \1 }
 my $response    =   {
   beaconId      =>  $config->{beacon_id},
   exists        =>  $bcExists,
-  alleleRequest =>  $config->{pretty_params},
+  alleleRequest =>  {
+    referenceName	=>	$config->{param}->{referenceName}->[0],
+    startMin		=>	1 * $config->{param}->{startMin}->[0],
+    start				=>	1 * $config->{param}->{startMin}->[0],
+    startMax		=>	1 * $config->{param}->{startMax}->[0],
+    endMin			=>	1 * $config->{param}->{endMin}->[0],
+    endMax			=>	1 * $config->{param}->{endMax}->[0],
+    referenceBases	=>	$config->{param}->{referenceBases}->[0],
+    alternateBases	=>	$config->{param}->{alternateBases}->[0],
+    variantType			=>	$config->{param}->{variantType}->[0]
+  },
   apiVersion    =>  $config->{api_version},
   url           =>  $config->{url},
-  datasetAlleleResponses    =>   $datasetR,
+  datasetAlleleResponses  =>   $datasetR,
   info          =>  {
     queryString =>  $ENV{QUERY_STRING},
     version     =>  'Beacon+ implementation based on the development branch of the ELIXIR Beacon project with custom extensions',
@@ -81,7 +104,8 @@ sub _getDataset {
   my $varResp  	=   [];
   my $varDistNo =   0;
 
-=pod
+=markdown
+#### Beacon Query Execution
 
 Different types of query are run, if parameters for them exist.
 
@@ -91,17 +115,16 @@ The current concept is:
 - provide the object-level counts as output (and store the ids for handover procedures)
 - aggregate on biosamples
 
-### Variant query
+* Variant query
 
-### Callset query
+* Callset query
 
-This is just an aggregator, since callsets are currently just wrapper objects (experiments delivering sets of variants).
+* Biosample query
 
-### Biosample query
+* Individual query
 
-### Individual query
-
-- e.g. species, sex ...
+The details of the query execution can be found in the documentation for the
+[__BeaconPlus::QueryExecution.pm__](+generated-doc-BeaconPlus-QueryExecution/) module.
 
 =cut
 
@@ -123,7 +146,7 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
     $varResp		=		$prefetch->{handover}->{'variants::digest'}->{target_values};
   }
 
-##############################################################################
+	##############################################################################
 
   if ($prefetch->{counts}->{'variants_match_count'} > 0) { $counts->{'exists'} = \1 }
 
@@ -138,7 +161,7 @@ This is just an aggregator, since callsets are currently just wrapper objects (e
     error       =>  $prefetch->{error},
     frequency   =>  $counts->{frequency} * 1,
     variantCount    =>  $prefetch->{counts}->{variants_match_count} * 1,
-    varResp    =>  $varResp,
+    varResp    	=>  $varResp,
     callCount   =>  $prefetch->{counts}->{callsets_match_count} * 1,
     sampleCount =>  $prefetch->{counts}->{biosamples_match_count} * 1,
     note        =>  q{},

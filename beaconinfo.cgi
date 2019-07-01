@@ -37,7 +37,6 @@ if ($querytype =~ /get_datasetids/) {
 
 =pod
 
-Please see the associated beaconresponse.md
 
 =cut
 
