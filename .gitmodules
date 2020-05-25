@@ -1,9 +1,0 @@
-[submodule "specification"]
-	path = specification
-	url = https://github.com/ga4gh-beacon/specification.git
-[submodule "PGX"]
-	path = PGX
-	url = https://github.com/progenetix/PGX
-[submodule "BeaconPlus"]
-	path = BeaconPlus
-	url = https://github.com/progenetix/BeaconPlus
