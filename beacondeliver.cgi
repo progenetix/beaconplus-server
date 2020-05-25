@@ -22,7 +22,7 @@ use BeaconPlus::QueryExecution;
 use lib './PGX';
 use PGX;
 
-=markdown
+=podmd
 The __BeaconHandover__ is a utility server side application to provide 
 __h-&gt;o__ functionality to the _BeaconPlus_ environment.
 
@@ -73,6 +73,7 @@ _print_histogram();
 _export_callsets();
 _export_biosamples_individuals();
 _export_variants();
+_display_variants_in_UCSC();
 
 exit;
 
@@ -164,7 +165,8 @@ sub _export_biosamples_individuals {
 
 sub _export_variants {
 
-  if ($config->{param}->{do}->[0] !~ /variants/i) { return }
+  if ($config->{param}->{do}->[0] !~ /variants/) { return }
+
   print 'Content-type: application/json'."\n\n";
 
   my $dataconn  =   MongoDB::MongoClient->new()->get_database( $handover->{source_db} );
@@ -173,6 +175,7 @@ sub _export_variants {
 
   my $key       =   $handover->{target_key};
   my $values    =   $handover->{target_values};
+
   if ($config->{param}->{do}->[0] =~ /callset/i) { 
     $key        =   'callset_id';
     my $distincts =   $dataconn->run_command([
@@ -191,5 +194,32 @@ sub _export_variants {
 
 }
 
+################################################################################
+
+sub _display_variants_in_UCSC {
+
+  print 'Content-type: text/html'."\n\n";
+
+  use BeaconPlus::DataExporter;
+
+  if ($config->{param}->{do}->[0] !~ /ucsc/i) { return }
+
+  write_variants_bedfile($config, $handover);
+  
+  my $ucscPos =   'chr'.$config->{param}->{ucscChro}->[0].':'.$config->{param}->{ucscStart}->[0];
+  if ($config->{param}->{ucscEnd}->[0] >= $config->{param}->{ucscStart}->[0]) {
+    $ucscPos  .=  '-'. $config->{param}->{ucscEnd}->[0] }
+
+  my $UCSCurl =   'http://genome.ucsc.edu/cgi-bin/hgTracks?ignoreCookie=1&org=human&db=hg38&position='.$ucscPos.'&hgt.customText='.$config->{url_base}.'/tmp/'.$handover->{_id}.'.bed';
+
+  print '<html>
+<meta http-equiv="refresh" content="0; url='.$UCSCurl.'" />
+<a href="'.$UCSCurl.'">'.$UCSCurl.'</a></html>'."\n";
+  
+  exit;
+
+}
+
+################################################################################
 
 1;

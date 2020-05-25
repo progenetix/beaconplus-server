@@ -13,120 +13,96 @@ use MongoDB::MongoClient;
 use Data::Dumper;
 
 use BeaconPlus::ConfigLoader;
+
+=podmd
+The "beaconinfo.cgi" server application serves tw main functions
+
+1. Called w/o parameters, it will return a standard Beacon information object.
+2. Provided with
+    - `datasetIds` (optional)
+    - `querytext`
+    - `querytype` (optional)
+it will return information about the matched identifiers from the collection(s)
+selected through `datasetIds`.
+
+=cut
+
 my $config      =   BeaconPlus::ConfigLoader->new();
-my $querytype   =   param('querytype');
-my $autoc       =   param('autocomplete');
-my $datasets    =   [ param('datasetIds') ];
+my $autoc       =   $config->{param}->{autocomplete}->[0];
 
-if ($datasets->[0] =~ /\w\w\w/) {
-  $config->{ dataset_names }  =   [];
-  foreach (grep{ /\w\w\w/ } @$datasets) {
-    push(@{ $config->{ dataset_names } }, $_);
-  }
-}
+if (! -t STDIN) { print 'Status: 200'."\n".'Content-type: application/json'."\n\n" }
 
-if (! -t STDIN) { print 'Content-type: application/json'."\n\n" }
-
-if ($querytype =~ /get_datasetids/) {
-
-  print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->encode($config->{ dataset_names })."\n";
-
+if ($ENV{REQUEST_URI} =~ /service\-info/) {
+  print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->encode($config->{service_info})."\n";
   exit;
-
 }
 
-=pod
+=podmd
+The counts for the collections (`variants`, `biosamples` etc.) of the different
+datasets are retrieved from the daily updated `progenetix.dbstats` collection.
 
+For the non-parametrized call of the application, just the basic information
+including variant counts is returned.
 
 =cut
 
 my $dbClient    =   MongoDB::MongoClient->new();
-my @dbList      =   $dbClient->database_names();
+my $cursor			=		$dbClient->get_database( 'progenetix' )->get_collection('dbstats')->find()->sort({_id => -1})->limit(1);
+my $stats				=		($cursor->all)[0];
 
-my $beaconInfo  =   {
-  beaconId      =>  $config->{ beacon_id },
-  provider      =>  $config->{ provider },
-  description   =>  $config->{ description },
-  url           =>  $config->{ url },
-  sameAs        =>  $config->{ url_alt },
-  logo          =>  $config->{ url_logo },
-  potentialActions   =>  $config->{ actions },
-  dataset       =>  [],
-};
-
-my $ontologyIds;
-my $biosQ       =   {};
-my $querytext;
-my $queryregex;
-
-if (param( 'querytext')) {
-  $querytext    =   param( 'querytext');
-  $queryregex   =   qr/$querytext/i;
-  $biosQ        =   { '$or' =>  [
-                      { "id"    => { '$regex' => $queryregex } },
-                      { "label" => { '$regex' => $queryregex } },
-                    ] };
-} else {
-  print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->encode($beaconInfo)."\n";
-  exit;
+my $beaconInfo	=		$config->{service_info};
+foreach (qw(id name apiVersion version description welcomeUrl alternativeUrl createDateTime updateDateTime organization sampleAlleleRequests)) {
+	$beaconInfo->{$_}	=		 $config->{$_};
 }
 
-#print Dumper($biosQ);
+foreach my $dataset ( @{ $config->{ datasets }}) {
 
-foreach my $datasetId ( @{ $config->{ dataset_names }}) {
+	my $counts		=		{
+		callCount				=>	$stats->{$dataset->{id}.'__variants'}->{count},
+		variantCount		=>	$stats->{$dataset->{id}.'__variants'}->{distincts_count_digest},
+		sampleCount			=>	$stats->{$dataset->{id}.'__biosamples'}->{count},
+	};
 
-  if (! grep{ /$datasetId/ } @dbList) { next }
+  if (grep{ $counts->{$_} > 0 } keys %$counts) {
 
-  my $dbconn    =   $dbClient->get_database( $datasetId );
+    my $dbconn    =   $dbClient->get_database( $dataset->{id} );
 
-  my $datasetI  =       {
-    identifier  => 'org.progenetix:'.$config->{ beacon_id }.':'.$datasetId,
-    datasetId   => $datasetId,
-    name        => $datasetId,
-  };
-
-  foreach my $coll (values %{ $config->{ collection_names } }) {
-    $datasetI->{ $coll.'_count' } =   $dbconn->get_collection($coll)->count;
-  }
-
-  ##############################################################################
+    foreach (sort keys %$counts) {
+      if ($counts->{$_} >	0) {
+        $dataset->{$_}	=		$counts->{$_} }
+    }
   
-  my $collName  =   'biosubsets';
-  if ($querytype  =~ /referenceid/) {
-    $collName  =   'datacollections' }
+=podmd
 
-  my $cursor    =   $dbconn->get_collection($collName)->find( $biosQ )->fields({ id => 1, label => 1, child_terms => 1, count => 1, _id => 0});
-  my @subsets   =   $cursor->all;
-  foreach my $sub (@subsets) {
-    $sub->{label_short}   =  $sub->{label};
-    $sub->{label_short}   =~ s/^(.{20,45}?)[\s\,].*?$/$1.../;
-    if ($sub->{id} =~ /\+$/) {
-    	$sub->{child_terms}	=	join(',', grep{ $_ !~ /\+/ } @{ $sub->{child_terms} }) }
-   	else {
-   		$sub->{child_terms} =  $sub->{id} }
-    $ontologyIds->{ $sub->{id} }  =   $sub;
+If the request contains an "ontologies" or "details" keyword, information about 
+the existing ontologies are provided, per dataset.
+
+TODO: This may either be deprecated (since an alternative exists in `/api/`),
+or be specified more clearly in the future, depending also on the development
+of the Beacon v2 "filters" concept.
+
+=cut
+
+    if ($ENV{REQUEST_URI}  =~ /details|ontolog/) {
+
+      my $collName  	=   'biosubsets';
+      if ($ENV{REQUEST_URI}  =~ /referenceid/) {
+        $collName =   'datacollections' }
+
+      my $cursor  =   $dbconn->get_collection($collName)->find( $config->{queries}->{biosamples} )->fields({ id => 1, label => 1, count => 1, _id => 0});
+      my @subsets =   $cursor->all;
+      foreach my $sub (grep{ $_->{id} !~ /\+/ } @subsets) {
+        $sub->{count}		*=	1;	
+        push(@{ $dataset->{ info }->{ ontology_terms } }, $sub);
+      }
+    }
+
+    push(@{ $beaconInfo->{datasets} }, $dataset);
+
   }
-
-  $datasetI->{ info }->{ ontology_terms } =   [ map{ { $_ => $ontologyIds->{ $_ } } } sort keys %{ $ontologyIds } ];
-
-  ##############################################################################
-
-  push(
-    @{ $beaconInfo->{dataset} },
-    $datasetI
-  );
-
 }
 
-$beaconInfo->{supportedRefs}  =   $config->{ genome_assemblies };
-
-if ($querytype =~ /ontologyid|referenceid/) {
-  $beaconInfo  =   [ map{ $ontologyIds->{$_} } (grep{ /[^\-\+]/ } sort keys %{ $ontologyIds } )] }
-
-if ($autoc =~ /1|y/i) {
-  print param('callback').'({"data":['.join(',', (map{ JSON::XS->new->pretty( 0 )->allow_blessed->convert_blessed->encode($_) } @$beaconInfo )).']});'."\n" }
-else {
-  print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->encode($beaconInfo)."\n" }
+print JSON::XS->new->pretty( 1 )->allow_blessed->convert_blessed->canonical()->encode($beaconInfo)."\n";
 
 exit;
 
